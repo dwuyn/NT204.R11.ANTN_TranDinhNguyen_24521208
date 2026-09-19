@@ -1,2 +1,8 @@
 assignments/
 AGENTS.md
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.class
+.pytest_cache/
