@@ -44,6 +44,7 @@ class TransportLayer:
     seq: Optional[int] = None
     ack: Optional[int] = None
     flags: List[str] = field(default_factory=list)
+    handshake: Optional[str] = None  # SYN, SYN-ACK, ACK
     window: Optional[int] = None
     data_offset: Optional[int] = None
     checksum: Optional[int] = None
@@ -62,6 +63,8 @@ class TransportLayer:
             data["ack"] = self.ack
         if self.flags:
             data["flags"] = list(self.flags)
+        if self.handshake is not None:
+            data["handshake"] = self.handshake
         if self.window is not None:
             data["window"] = self.window
         if self.data_offset is not None:
