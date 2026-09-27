@@ -21,12 +21,40 @@
 [0002] 10.0.0.1 -> 10.0.0.10 (TCP):80 -> :51234 [SYN,ACK] [len=40]
 [0003] 10.0.0.10 -> 10.0.0.1 (TCP):51234 -> :80 [ACK] [len=40]
 ------------------------------------------------------------
-[+] Finished: Processed 3 packets in 0.00s (2426.3 pkts/s)
+[+] Finished: Processed 3 packets in 0.00s (2192.1 pkts/s)
 [+] Output saved to: TEST/test_01_tcp_handshake/output.jsonl
 ============================================================
 ```
 
-## 2. Chi tiết Normalized Events (JSON)
+## 2. Kỳ vọng kiểm thử (Assertions)
+- Số event tối thiểu: **3**
+- Danh sách JSON subset bắt buộc phải khớp:
+```json
+[
+  {
+    "transport": {
+      "handshake": "SYN"
+    }
+  },
+  {
+    "transport": {
+      "handshake": "SYN-ACK"
+    }
+  },
+  {
+    "transport": {
+      "handshake": "ACK"
+    }
+  }
+]
+```
+
+## 3. Đánh giá tính đúng đắn
+- Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.
+- Chương trình kết thúc bình thường (exit code 0), không crash.
+- Cấu trúc dữ liệu đầu ra tuân thủ đúng định dạng JSON chuẩn hóa của đề bài.
+
+## 4. Chi tiết Normalized Events (JSON)
 ```json
 [
   {
@@ -134,8 +162,3 @@
   }
 ]
 ```
-
-## 3. Đánh giá tính đúng đắn
-- Toàn bộ gói tin được bóc tách chính xác qua parsing pipeline.
-- Không xảy ra lỗi ngoài ý muốn hoặc crash chương trình.
-- Cấu trúc dữ liệu đầu ra tuân thủ đúng định dạng JSON chuẩn hóa của đề bài.
