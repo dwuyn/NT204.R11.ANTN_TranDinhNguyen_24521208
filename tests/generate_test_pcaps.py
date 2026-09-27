@@ -1,10 +1,12 @@
 """Script to generate synthetic test PCAPs for all 12 mandatory test cases."""
 
 import os
+import sys
+
 from scapy.all import DNS, DNSQR, DNSRR, IP, Raw, TCP, UDP, wrpcap
 
 
-def generate_all_cases(base_dir: str = "TEST"):
+def generate_all_cases(base_dir: str = "TEST", only=None):
     cases = {}
 
     # Case 01: TCP Handshake (SYN, SYN-ACK, ACK)
@@ -89,7 +91,21 @@ def generate_all_cases(base_dir: str = "TEST"):
     c12_p2 = IP(src="10.0.0.2", dst="10.0.0.1") / Raw(b"\x00\x01\x02")
     cases["test_12_malformed_packet"] = [c12_p1, c12_p2]
 
+    # Case 13 (bonus): Application protocol detection on non-standard ports.
+    # DNS is wrapped in Raw() so the detector cannot rely on a Scapy DNS layer.
+    c13_p1 = IP(src="10.0.0.10", dst="10.0.0.20") / TCP(sport=51000, dport=9000, flags="PA") / Raw(
+        b"GET /nonstandard HTTP/1.1\r\nHost: nonstandard.local\r\n\r\n"
+    )
+    c13_p2 = IP(src="10.0.0.10", dst="10.0.0.20") / TCP(sport=51000, dport=8025, flags="PA") / Raw(
+        b"EHLO client.nonstandard.local\r\n"
+    )
+    c13_dns = bytes(DNS(id=0x2222, rd=1, qd=DNSQR(qname="nonstandard.example.com", qtype="A")))
+    c13_p3 = IP(src="10.0.0.10", dst="8.8.8.8") / UDP(sport=51000, dport=53535) / Raw(c13_dns)
+    cases["test_13_non_standard_port"] = [c13_p1, c13_p2, c13_p3]
+
     for case_name, pkts in cases.items():
+        if only and case_name not in only:
+            continue
         case_dir = os.path.join(base_dir, case_name)
         os.makedirs(case_dir, exist_ok=True)
         pcap_path = os.path.join(case_dir, "test.pcap")
@@ -98,4 +114,4 @@ def generate_all_cases(base_dir: str = "TEST"):
 
 
 if __name__ == "__main__":
-    generate_all_cases()
+    generate_all_cases(only=sys.argv[1:] or None)
