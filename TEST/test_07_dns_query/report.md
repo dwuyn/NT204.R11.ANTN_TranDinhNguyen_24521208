@@ -19,12 +19,39 @@
 ------------------------------------------------------------
 [0001] 192.168.1.100 -> 8.8.8.8 (UDP):53000 -> :53 | DNS (query) [len=63]
 ------------------------------------------------------------
-[+] Finished: Processed 1 packets in 0.00s (832.0 pkts/s)
+[+] Finished: Processed 1 packets in 0.00s (836.0 pkts/s)
 [+] Output saved to: TEST/test_07_dns_query/output.jsonl
 ============================================================
 ```
 
-## 2. Chi tiết Normalized Events (JSON)
+## 2. Kỳ vọng kiểm thử (Assertions)
+- Số event tối thiểu: **1**
+- Danh sách JSON subset bắt buộc phải khớp:
+```json
+[
+  {
+    "application": {
+      "protocol": "DNS",
+      "type": "query",
+      "details": {
+        "queries": [
+          {
+            "name": "portal.uit.edu.vn",
+            "type": "A"
+          }
+        ]
+      }
+    }
+  }
+]
+```
+
+## 3. Đánh giá tính đúng đắn
+- Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.
+- Chương trình kết thúc bình thường (exit code 0), không crash.
+- Cấu trúc dữ liệu đầu ra tuân thủ đúng định dạng JSON chuẩn hóa của đề bài.
+
+## 4. Chi tiết Normalized Events (JSON)
 ```json
 [
   {
@@ -73,8 +100,3 @@
   }
 ]
 ```
-
-## 3. Đánh giá tính đúng đắn
-- Toàn bộ gói tin được bóc tách chính xác qua parsing pipeline.
-- Không xảy ra lỗi ngoài ý muốn hoặc crash chương trình.
-- Cấu trúc dữ liệu đầu ra tuân thủ đúng định dạng JSON chuẩn hóa của đề bài.
