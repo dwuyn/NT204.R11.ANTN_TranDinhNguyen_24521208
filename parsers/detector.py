@@ -40,9 +40,7 @@ SMTP_COMMAND_RE = re.compile(
 # SMTP response line: 3 digits followed by space or hyphen (e.g. "220 ", "250-")
 SMTP_RESPONSE_RE = re.compile(rb"^[2345]\d{2}[ -]")
 
-HTTP_PORTS = {80, 8080, 8000, 8888, 3000, 8443}
 DNS_PORTS = {53, 5353}
-SMTP_PORTS = {25, 587, 465, 2525}
 
 DNS_VALID_CHARS = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
 
@@ -146,18 +144,13 @@ class AppProtocolDetector:
         if cls.is_dns_payload(payload):
             return "DNS", "payload_signature"
 
-        # 3. Port-based fallback heuristics if payload signature was inconclusive
-        # Only fallback to text protocols if payload is mostly printable ASCII
+        # 3. Port-based fallback: DNS is binary and has no reliable text
+        # signature on every message, so its port is still a useful signal.
+        # HTTP/SMTP are detected by payload signature only, to avoid flagging
+        # arbitrary printable TCP payloads on port 80/25 as those protocols.
         if transport:
             ports = {transport.src_port, transport.dst_port}
             if ports & DNS_PORTS:
                 return "DNS", "port_heuristic"
-
-            is_printable = all(32 <= b <= 126 or b in (9, 10, 13) for b in payload[:100])
-            if is_printable:
-                if ports & HTTP_PORTS:
-                    return "HTTP", "port_heuristic"
-                if ports & SMTP_PORTS:
-                    return "SMTP", "port_heuristic"
 
         return "UNKNOWN", "default"

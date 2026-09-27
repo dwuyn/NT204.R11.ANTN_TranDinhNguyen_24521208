@@ -100,6 +100,24 @@ class TestAppProtocolDetector(unittest.TestCase):
         self.assertEqual(proto, "UNKNOWN")
         self.assertEqual(method, "none")
 
+    def test_plain_text_on_http_port_is_not_http(self):
+        payload = b"User data stream payload over TCP connection"
+        pkt = IP() / TCP(sport=51234, dport=80) / Raw(payload)
+        trans = TransportLayer(layer="TCP", src_port=51234, dst_port=80, payload_len=len(payload))
+
+        proto, method = AppProtocolDetector.detect(pkt, trans, payload)
+        self.assertEqual(proto, "UNKNOWN")
+        self.assertEqual(method, "default")
+
+    def test_plain_text_on_smtp_port_is_not_smtp(self):
+        payload = b"custom application handshake bytes"
+        pkt = IP() / TCP(sport=45000, dport=25) / Raw(payload)
+        trans = TransportLayer(layer="TCP", src_port=45000, dst_port=25, payload_len=len(payload))
+
+        proto, method = AppProtocolDetector.detect(pkt, trans, payload)
+        self.assertEqual(proto, "UNKNOWN")
+        self.assertEqual(method, "default")
+
 
 if __name__ == "__main__":
     unittest.main()
