@@ -21,12 +21,49 @@
 [0002] 10.0.0.25 -> 192.168.1.100 (TCP):25 -> :45000 [ACK,PSH] | SMTP (response) [len=70]
 [0003] 10.0.0.25 -> 192.168.1.100 (TCP):25 -> :45000 [ACK,PSH] | SMTP (response) [len=77]
 ------------------------------------------------------------
-[+] Finished: Processed 3 packets in 0.00s (1878.6 pkts/s)
+[+] Finished: Processed 3 packets in 0.00s (1805.3 pkts/s)
 [+] Output saved to: TEST/test_10_smtp_response/output.jsonl
 ============================================================
 ```
 
-## 2. Chi tiết Normalized Events (JSON)
+## 2. Kỳ vọng kiểm thử (Assertions)
+- Số event tối thiểu: **3**
+- Danh sách JSON subset bắt buộc phải khớp:
+```json
+[
+  {
+    "application": {
+      "protocol": "SMTP",
+      "details": {
+        "status_code": 220
+      }
+    }
+  },
+  {
+    "application": {
+      "protocol": "SMTP",
+      "details": {
+        "status_code": 250
+      }
+    }
+  },
+  {
+    "application": {
+      "protocol": "SMTP",
+      "details": {
+        "status_code": 354
+      }
+    }
+  }
+]
+```
+
+## 3. Đánh giá tính đúng đắn
+- Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.
+- Chương trình kết thúc bình thường (exit code 0), không crash.
+- Cấu trúc dữ liệu đầu ra tuân thủ đúng định dạng JSON chuẩn hóa của đề bài.
+
+## 4. Chi tiết Normalized Events (JSON)
 ```json
 [
   {
@@ -166,8 +203,3 @@
   }
 ]
 ```
-
-## 3. Đánh giá tính đúng đắn
-- Toàn bộ gói tin được bóc tách chính xác qua parsing pipeline.
-- Không xảy ra lỗi ngoài ý muốn hoặc crash chương trình.
-- Cấu trúc dữ liệu đầu ra tuân thủ đúng định dạng JSON chuẩn hóa của đề bài.
