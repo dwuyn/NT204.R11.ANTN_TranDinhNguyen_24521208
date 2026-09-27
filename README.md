@@ -104,7 +104,8 @@ NT204.R11.ANTN_TranDinhNguyen_24521208/
     ├── test_10_smtp_response/      # Test SMTP Responses (220, 250, 354)
     ├── test_11_unknown_protocol/   # Test Giao thức lạ không bị crash
     ├── test_12_malformed_packet/   # Test Gói tin hỏng/cắt cụt không bị crash
-    └── test_13_non_standard_port/  # Test nhận diện protocol trên port phi tiêu chuẩn (bổ sung)
+    ├── test_13_non_standard_port/  # Test nhận diện protocol trên port phi tiêu chuẩn (bổ sung)
+    └── test_14_truncated_pcap/     # Test file PCAP bị cắt cụt (bổ sung)
 ```
 
 ---
@@ -215,6 +216,7 @@ Toàn bộ 12 test cases đều được tạo PCAP độc lập, chạy phân t
 | 11 | **Unknown Protocol** | Xử lý an toàn không crash khi gặp protocol lạ | **PASS** | `TEST/test_11_unknown_protocol/` |
 | 12 | **Malformed Packet** | Xử lý an toàn không crash khi gặp packet hỏng/cắt cụt | **PASS** | `TEST/test_12_malformed_packet/` |
 | 13 | **Non-standard Port** (bổ sung) | Nhận diện HTTP/SMTP/DNS trên port phi tiêu chuẩn bằng payload signature | **PASS** | `TEST/test_13_non_standard_port/` |
+| 14 | **Truncated PCAP** (bổ sung) | Không crash khi file PCAP bị cắt cụt, vẫn parse gói đầy đủ đầu tiên | **PASS** | `TEST/test_14_truncated_pcap/` |
 
 ---
 

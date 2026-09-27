@@ -1,6 +1,7 @@
 """Script to generate synthetic test PCAPs for all 12 mandatory test cases."""
 
 import os
+import struct
 import sys
 
 from scapy.all import DNS, DNSQR, DNSRR, IP, Raw, TCP, UDP, wrpcap
@@ -103,6 +104,13 @@ def generate_all_cases(base_dir: str = "TEST", only=None):
     c13_p3 = IP(src="10.0.0.10", dst="8.8.8.8") / UDP(sport=51000, dport=53535) / Raw(c13_dns)
     cases["test_13_non_standard_port"] = [c13_p1, c13_p2, c13_p3]
 
+    # Case 14 (bonus): File PCAP bị cắt cụt (đề mục 7). Hai gói HTTP GET, sau đó
+    # cắt phần đuôi file để record gói cuối không đầy đủ, gói đầu vẫn đọc được.
+    c14_body = b"GET /truncated HTTP/1.1\r\nHost: truncated.local\r\n\r\n"
+    c14_p1 = IP(src="10.0.0.30", dst="10.0.0.40") / TCP(sport=52000, dport=80, flags="PA") / Raw(c14_body)
+    c14_p2 = IP(src="10.0.0.30", dst="10.0.0.40") / TCP(sport=52000, dport=80, flags="PA") / Raw(c14_body)
+    cases["test_14_truncated_pcap"] = [c14_p1, c14_p2]
+
     for case_name, pkts in cases.items():
         if only and case_name not in only:
             continue
@@ -110,6 +118,26 @@ def generate_all_cases(base_dir: str = "TEST", only=None):
         os.makedirs(case_dir, exist_ok=True)
         pcap_path = os.path.join(case_dir, "test.pcap")
         wrpcap(pcap_path, pkts)
+
+        if case_name == "test_14_truncated_pcap":
+            trunc_path = os.path.join(case_dir, "truncated.pcap")
+            with open(pcap_path, "rb") as f:
+                data = f.read()
+            # Walk the global header (24B) + record headers (16B) to find the
+            # last record, then cut it short so only packet 1 stays intact.
+            off = 24
+            last = off
+            incl = 0
+            while off + 16 <= len(data):
+                incl = struct.unpack("<I", data[off + 8 : off + 12])[0]
+                last = off
+                off += 16 + incl
+            truncated = data[: last + 16 + min(incl, 8)]
+            with open(trunc_path, "wb") as f:
+                f.write(truncated)
+            os.remove(pcap_path)
+            pcap_path = trunc_path
+
         print(f"[+] Generated {pcap_path} ({len(pkts)} packets)")
 
 
