@@ -19,12 +19,31 @@
 ------------------------------------------------------------
 [0001] 192.168.1.100 -> 192.168.1.200 (UDP):12345 -> :54321 [len=75]
 ------------------------------------------------------------
-[+] Finished: Processed 1 packets in 0.00s (887.1 pkts/s)
+[+] Finished: Processed 1 packets in 0.00s (772.6 pkts/s)
 [+] Output saved to: TEST/test_03_udp/output.jsonl
 ============================================================
 ```
 
-## 2. Chi tiết Normalized Events (JSON)
+## 2. Kỳ vọng kiểm thử (Assertions)
+- Số event tối thiểu: **1**
+- Danh sách JSON subset bắt buộc phải khớp:
+```json
+[
+  {
+    "transport": {
+      "layer": "UDP",
+      "payload_len": 47
+    }
+  }
+]
+```
+
+## 3. Đánh giá tính đúng đắn
+- Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.
+- Chương trình kết thúc bình thường (exit code 0), không crash.
+- Cấu trúc dữ liệu đầu ra tuân thủ đúng định dạng JSON chuẩn hóa của đề bài.
+
+## 4. Chi tiết Normalized Events (JSON)
 ```json
 [
   {
@@ -62,8 +81,3 @@
   }
 ]
 ```
-
-## 3. Đánh giá tính đúng đắn
-- Toàn bộ gói tin được bóc tách chính xác qua parsing pipeline.
-- Không xảy ra lỗi ngoài ý muốn hoặc crash chương trình.
-- Cấu trúc dữ liệu đầu ra tuân thủ đúng định dạng JSON chuẩn hóa của đề bài.
