@@ -17,9 +17,9 @@
 [*] Mode: PCAP Import (TEST/test_02_tcp_data/test.pcap)
 [*] Writing normalized events to: TEST/test_02_tcp_data/output.jsonl
 ------------------------------------------------------------
-[0001] 10.0.0.10 -> 10.0.0.1 (TCP):51234 -> :80 [ACK,PSH] | HTTP (request) [len=84]
+[0001] 10.0.0.10 -> 10.0.0.1 (TCP):51234 -> :80 [ACK,PSH] [len=84]
 ------------------------------------------------------------
-[+] Finished: Processed 1 packets in 0.00s (768.0 pkts/s)
+[+] Finished: Processed 1 packets in 0.00s (855.1 pkts/s)
 [+] Output saved to: TEST/test_02_tcp_data/output.jsonl
 ============================================================
 ```
@@ -59,15 +59,10 @@
       "data_offset": 5
     },
     "application": {
-      "protocol": "HTTP",
-      "type": "request",
+      "protocol": "UNKNOWN",
+      "type": "unknown",
       "details": {
-        "method": "USER",
-        "uri": "data",
-        "version": "stream payload over TCP connection",
-        "headers": {},
-        "body": "",
-        "detection_method": "port_heuristic"
+        "detection_method": "default"
       }
     },
     "errors": []
