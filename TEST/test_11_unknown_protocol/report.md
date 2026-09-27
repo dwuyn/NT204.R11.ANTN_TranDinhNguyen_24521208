@@ -20,12 +20,33 @@
 [0001] 10.0.0.1 -> 10.0.0.2 (PROTO_253) [len=28]
 [0002] 10.0.0.1 -> 10.0.0.2 (TCP):61111 -> :62222 [ACK,PSH] [len=58]
 ------------------------------------------------------------
-[+] Finished: Processed 2 packets in 0.00s (1255.8 pkts/s)
+[+] Finished: Processed 2 packets in 0.00s (1442.8 pkts/s)
 [+] Output saved to: TEST/test_11_unknown_protocol/output.jsonl
 ============================================================
 ```
 
-## 2. Chi tiết Normalized Events (JSON)
+## 2. Kỳ vọng kiểm thử (Assertions)
+- Số event tối thiểu: **2**
+- Danh sách JSON subset bắt buộc phải khớp:
+```json
+[
+  {
+    "application": {
+      "protocol": "UNKNOWN"
+    }
+  },
+  {
+    "errors": []
+  }
+]
+```
+
+## 3. Đánh giá tính đúng đắn
+- Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.
+- Chương trình kết thúc bình thường (exit code 0), không crash.
+- Cấu trúc dữ liệu đầu ra tuân thủ đúng định dạng JSON chuẩn hóa của đề bài.
+
+## 4. Chi tiết Normalized Events (JSON)
 ```json
 [
   {
@@ -97,8 +118,3 @@
   }
 ]
 ```
-
-## 3. Đánh giá tính đúng đắn
-- Toàn bộ gói tin được bóc tách chính xác qua parsing pipeline.
-- Không xảy ra lỗi ngoài ý muốn hoặc crash chương trình.
-- Cấu trúc dữ liệu đầu ra tuân thủ đúng định dạng JSON chuẩn hóa của đề bài.
