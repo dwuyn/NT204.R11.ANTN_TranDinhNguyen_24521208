@@ -56,8 +56,8 @@ Quy trình xử lý một gói tin tuân thủ nghiêm ngặt theo mô hình pip
 ```text
 NT204.R11.ANTN_TranDinhNguyen_24521208/
 ├── .gitignore                      # Cấu hình bỏ qua file nhị phân và cache
-├── AGENTS.md                       # Quy chế phát triển độc lập cho AI Agent
 ├── README.md                       # Tài liệu hướng dẫn & AI disclosure
+├── requirements.txt                # Thư viện Python cần thiết (scapy)
 ├── main.py                         # CLI entrypoint của chương trình IDS
 ├── capture/
 │   ├── __init__.py
@@ -113,7 +113,7 @@ NT204.R11.ANTN_TranDinhNguyen_24521208/
 ### 4.1. Môi trường yêu cầu
 - **Hệ điều hành**: Linux (Ubuntu, Debian, Fedora, Arch Linux, v.v.)
 - **Python**: Phiên bản `>= 3.10`
-- **Thư viện yêu cầu**: `scapy` (`pip install scapy`)
+- **Thư viện yêu cầu**: `scapy >= 2.5.0` (`pip install -r requirements.txt`)
 
 ### 4.2. Hướng dẫn chạy CLI (`main.py`)
 
