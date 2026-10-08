@@ -565,6 +565,33 @@ EXPECTATIONS = {
             "2 FIN, 0 RST và đóng với close_reason fin."
         ),
     },
+    "bt2_t14_malformed_event": {
+        "pcap": "truncated.pcap",
+        "min_events": 2,
+        "checks": [
+            {
+                "transport": {"layer": "TCP"},
+                "preprocess": {
+                    "preprocess_status": "partial",
+                    "reason": "no_application_layer",
+                },
+            },
+            {
+                "network": {"proto": "PROTO_0"},
+                "preprocess": {
+                    "preprocess_status": "partial",
+                    "reason": "missing_transport_layer",
+                },
+            },
+        ],
+        "min_flows": 1,
+        "description": "Xử lý event lỗi và file PCAP bị cắt cụt",
+        "criteria": (
+            "PCAP cắt cụt vẫn đọc được, packet IP/TCP không payload được đánh partial với "
+            "reason no_application_layer và vẫn tạo flow TCP; packet IP proto 0 không có "
+            "transport layer được đánh partial với reason missing_transport_layer."
+        ),
+    },
 }
 
 
