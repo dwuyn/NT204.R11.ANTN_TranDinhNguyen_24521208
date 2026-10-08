@@ -535,6 +535,36 @@ EXPECTATIONS = {
             "được flush khi hết capture với close_reason end_of_capture."
         ),
     },
+    "bt2_t13_statistics": {
+        "min_events": 8,
+        "checks": [
+            {"decode": {"fields": {"body_decoded": "OK"}}},
+        ],
+        "min_flows": 1,
+        "flow_checks": [
+            {
+                "packet_count": 8,
+                "byte_count": 392,
+                "start_time": 1700000000.0,
+                "last_seen": 1700000000.7,
+                "duration": 0.7,
+                "forward": {"packet_count": 4, "byte_count": 192},
+                "backward": {"packet_count": 4, "byte_count": 200},
+                "syn_count": 2,
+                "ack_count": 7,
+                "fin_count": 2,
+                "rst_count": 0,
+                "state": "CLOSED",
+                "close_reason": "fin",
+            }
+        ],
+        "description": "Thống kê chi tiết một flow TCP đầy đủ vòng đời",
+        "criteria": (
+            "Flow 8 packet từ bắt tay đến khi đóng ghi đúng start_time/last_seen/duration "
+            "(0.7s) và byte_count (392 = 192 xuôi + 200 ngược), đếm đúng 2 SYN, 7 ACK, "
+            "2 FIN, 0 RST và đóng với close_reason fin."
+        ),
+    },
 }
 
 
