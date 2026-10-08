@@ -40,6 +40,14 @@ SMTP_COMMAND_RE = re.compile(
 # SMTP response line: 3 digits followed by space or hyphen (e.g. "220 ", "250-")
 SMTP_RESPONSE_RE = re.compile(rb"^[2345]\d{2}[ -]")
 
+# MIME (e-mail) message data: first line is a header "Key: value", and the
+# header block carries a transfer-encoding / MIME version marker.
+MIME_HEADER_KEY_RE = re.compile(rb"^[A-Za-z][A-Za-z0-9-]*:")
+MIME_TRANSFER_HEADER_RE = re.compile(rb"(?im)^(content-transfer-encoding|mime-version):")
+
+# Only the first 4 KiB are inspected when looking for MIME markers.
+MIME_HEADER_SCAN_LIMIT = 4096
+
 DNS_PORTS = {53, 5353}
 
 DNS_VALID_CHARS = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -80,6 +88,30 @@ class AppProtocolDetector:
             return True
 
         return False
+
+    @classmethod
+    def is_mime_payload(cls, payload: bytes) -> bool:
+        """Check if payload is e-mail MIME message data (headers + body).
+
+        Used for SMTP DATA transfers, which carry no SMTP command/response
+        line but are still SMTP traffic. Requires both a header-style first
+        line and an explicit MIME marker in the header block, so that plain
+        text bodies are not misclassified.
+        """
+        stripped = payload.lstrip(b"\r\n")
+        if not stripped:
+            return False
+
+        first_line = stripped.split(b"\n", 1)[0].rstrip(b"\r")
+        if not MIME_HEADER_KEY_RE.match(first_line):
+            return False
+
+        head = stripped[:MIME_HEADER_SCAN_LIMIT]
+        for separator in (b"\r\n\r\n", b"\n\n"):
+            if separator in head:
+                head = head.split(separator, 1)[0]
+                break
+        return bool(MIME_TRANSFER_HEADER_RE.search(head))
 
     @classmethod
     def is_dns_payload(cls, payload: bytes) -> bool:
@@ -139,6 +171,11 @@ class AppProtocolDetector:
             return "HTTP", "payload_signature"
 
         if cls.is_smtp_payload(payload):
+            return "SMTP", "payload_signature"
+
+        # SMTP DATA phase: an e-mail message (MIME headers + body) with no
+        # SMTP command/response line of its own.
+        if cls.is_mime_payload(payload):
             return "SMTP", "payload_signature"
 
         if cls.is_dns_payload(payload):

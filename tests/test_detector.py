@@ -119,5 +119,81 @@ class TestAppProtocolDetector(unittest.TestCase):
         self.assertEqual(method, "default")
 
 
+class TestMimeDetection(unittest.TestCase):
+    MIME_BLOCK = (
+        b"From: sender@uit.edu.vn\r\n"
+        b"To: rcpt@uit.edu.vn\r\n"
+        b"MIME-Version: 1.0\r\n"
+        b"Content-Type: text/plain; charset=utf-8\r\n"
+        b"Content-Transfer-Encoding: base64\r\n"
+        b"\r\n"
+        b"SGVsbG8gV29ybGQh"
+    )
+
+    def test_mime_data_on_standard_port_is_smtp(self):
+        pkt = IP(src="10.0.0.10", dst="10.0.0.25") / TCP(sport=45000, dport=25, flags="PA") / Raw(
+            self.MIME_BLOCK
+        )
+        transport = TransportLayer(layer="TCP", src_port=45000, dst_port=25, payload_len=len(self.MIME_BLOCK))
+
+        protocol, method = AppProtocolDetector.detect(pkt, transport, self.MIME_BLOCK)
+        self.assertEqual(protocol, "SMTP")
+        self.assertEqual(method, "payload_signature")
+
+    def test_mime_data_on_non_standard_port_is_smtp(self):
+        pkt = IP(src="10.0.0.10", dst="10.0.0.25") / TCP(sport=45000, dport=8025, flags="PA") / Raw(
+            self.MIME_BLOCK
+        )
+        transport = TransportLayer(layer="TCP", src_port=45000, dst_port=8025, payload_len=len(self.MIME_BLOCK))
+
+        protocol, method = AppProtocolDetector.detect(pkt, transport, self.MIME_BLOCK)
+        self.assertEqual(protocol, "SMTP")
+        self.assertEqual(method, "payload_signature")
+
+    def test_quoted_printable_marker_is_mime(self):
+        payload = (
+            b"Content-Type: text/plain; charset=utf-8\r\n"
+            b"Content-Transfer-Encoding: quoted-printable\r\n"
+            b"\r\n"
+            b"Xin ch=C3=A0o"
+        )
+        self.assertTrue(AppProtocolDetector.is_mime_payload(payload))
+
+    def test_content_type_only_is_not_mime(self):
+        payload = b"Content-Type: text/plain\r\n\r\nhello world"
+        self.assertFalse(AppProtocolDetector.is_mime_payload(payload))
+
+    def test_http_request_is_not_mime(self):
+        payload = b"GET /x HTTP/1.1\r\nHost: a\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+        self.assertFalse(AppProtocolDetector.is_mime_payload(payload))
+        self.assertTrue(AppProtocolDetector.is_http_payload(payload))
+
+    def test_plain_text_line_is_not_mime(self):
+        self.assertFalse(AppProtocolDetector.is_mime_payload(b"just some plain text"))
+        self.assertFalse(AppProtocolDetector.is_mime_payload(b""))
+        self.assertFalse(AppProtocolDetector.is_mime_payload(b"\xde\xad\xbe\xef"))
+
+    def test_mime_marker_outside_header_block_is_ignored(self):
+        payload = (
+            b"From: a@b.c\r\n"
+            b"\r\n"
+            b"MIME-Version: 1.0\r\n"
+            b"Content-Transfer-Encoding: base64\r\n"
+        )
+        self.assertFalse(AppProtocolDetector.is_mime_payload(payload))
+
+    def test_existing_http_and_smtp_detection_unchanged(self):
+        payload = b"POST /api/login HTTP/1.1\r\nHost: 10.0.0.1\r\n\r\nuser=test"
+        self.assertEqual(AppProtocolDetector.detect(IP() / TCP(), None, payload), ("HTTP", "payload_signature"))
+        self.assertEqual(
+            AppProtocolDetector.detect(IP() / TCP(), None, b"MAIL FROM:<a@b.c>\r\n"),
+            ("SMTP", "payload_signature"),
+        )
+        self.assertEqual(
+            AppProtocolDetector.detect(IP() / TCP(), None, b"\xde\xad\xbe\xef\x01\x02\x03\x04"),
+            ("UNKNOWN", "default"),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

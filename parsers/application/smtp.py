@@ -7,6 +7,7 @@ and SMTP server responses (status codes 220, 250, 354, 550, etc.) from raw paylo
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from parsers.detector import AppProtocolDetector
 from parsers.models import ApplicationLayer
 
 SMTP_CMD_PATTERN = re.compile(
@@ -18,7 +19,7 @@ SMTP_RESP_PATTERN = re.compile(r"^([2345]\d{2})([ -])(.*)$")
 
 
 class SmtpParser:
-    """Parses SMTP commands and responses into normalized structures."""
+    """Parses SMTP commands, responses and DATA-phase MIME messages."""
 
     @classmethod
     def parse(cls, payload: bytes) -> Tuple[Optional[ApplicationLayer], List[str]]:
@@ -84,6 +85,11 @@ class SmtpParser:
                 }
                 return ApplicationLayer(protocol="SMTP", type="command", details=details), errors
 
+            # SMTP DATA phase: an e-mail message (MIME headers + body) that
+            # carries no SMTP command/response line of its own.
+            if AppProtocolDetector.is_mime_payload(payload):
+                return cls._parse_mime(payload), errors
+
             # If payload doesn't match standard SMTP patterns
             errors.append(f"Unrecognized SMTP line: {first_line}")
             return None, errors
@@ -91,3 +97,40 @@ class SmtpParser:
         except Exception as exc:
             errors.append(f"SMTP parse error: {str(exc)}")
             return None, errors
+
+    @classmethod
+    def _split_message(cls, payload: bytes) -> Tuple[bytes, bytes]:
+        """Split a MIME message into its header block and body."""
+        if b"\r\n\r\n" in payload:
+            header_raw, body_raw = payload.split(b"\r\n\r\n", 1)
+        elif b"\n\n" in payload:
+            header_raw, body_raw = payload.split(b"\n\n", 1)
+        else:
+            header_raw, body_raw = payload, b""
+        return header_raw, body_raw
+
+    @classmethod
+    def _parse_header_block(cls, header_raw: bytes) -> Dict[str, str]:
+        """Parse ``Key: value`` lines; original key case kept, first value wins."""
+        headers: Dict[str, str] = {}
+        text = header_raw.decode("latin-1", errors="replace")
+        for line in text.split("\n"):
+            line = line.strip("\r")
+            if not line or ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            key = key.strip()
+            if key and key not in headers:
+                headers[key] = value.strip()
+        return headers
+
+    @classmethod
+    def _parse_mime(cls, payload: bytes) -> ApplicationLayer:
+        """Parse an e-mail message body into an SMTP ``data`` ApplicationLayer."""
+        header_raw, body_raw = cls._split_message(payload)
+        details: Dict[str, Any] = {
+            "headers": cls._parse_header_block(header_raw),
+            "body": body_raw.decode("latin-1", errors="replace"),
+            "mime": True,
+        }
+        return ApplicationLayer(protocol="SMTP", type="data", details=details)

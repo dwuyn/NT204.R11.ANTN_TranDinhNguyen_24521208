@@ -69,5 +69,69 @@ class TestSmtpParser(unittest.TestCase):
         self.assertTrue(len(errors) > 0)
 
 
+class TestSmtpMimeParsing(unittest.TestCase):
+    def test_mime_message_is_parsed_as_data(self):
+        payload = (
+            b"From: sender@uit.edu.vn\r\n"
+            b"To: rcpt@uit.edu.vn\r\n"
+            b"Subject: =?utf-8?B?VMOhaSBraG9hbg==?=\r\n"
+            b"MIME-Version: 1.0\r\n"
+            b"Content-Type: text/plain; charset=utf-8\r\n"
+            b"Content-Transfer-Encoding: base64\r\n"
+            b"\r\n"
+            b"SGVsbG8gV29ybGQhIFRoaXMgaXMgYSBiYXNlNjQgbWVzc2FnZS4="
+        )
+        app, errors = SmtpParser.parse(payload)
+
+        self.assertIsNotNone(app)
+        self.assertEqual(errors, [])
+        self.assertEqual(app.protocol, "SMTP")
+        self.assertEqual(app.type, "data")
+        self.assertTrue(app.details["mime"])
+        self.assertEqual(
+            app.details["headers"]["Content-Transfer-Encoding"], "base64"
+        )
+        self.assertEqual(
+            app.details["body"], "SGVsbG8gV29ybGQhIFRoaXMgaXMgYSBiYXNlNjQgbWVzc2FnZS4="
+        )
+
+    def test_mime_message_without_mime_version(self):
+        payload = (
+            b"Content-Type: text/plain; charset=utf-8\r\n"
+            b"Content-Transfer-Encoding: quoted-printable\r\n"
+            b"\r\n"
+            b"H=E1=BB=87 th=E1=BB=91ng IDS"
+        )
+        app, errors = SmtpParser.parse(payload)
+
+        self.assertIsNotNone(app)
+        self.assertEqual(app.type, "data")
+        self.assertEqual(app.details["headers"]["Content-Transfer-Encoding"], "quoted-printable")
+
+    def test_duplicate_header_keeps_first_value(self):
+        payload = (
+            b"Subject: first\r\n"
+            b"Subject: second\r\n"
+            b"Content-Transfer-Encoding: 8bit\r\n"
+            b"\r\n"
+            b"body"
+        )
+        app, _errors = SmtpParser.parse(payload)
+
+        self.assertEqual(app.details["headers"]["Subject"], "first")
+
+    def test_commands_and_responses_still_take_priority(self):
+        app, _errors = SmtpParser.parse(b"MAIL FROM:<a@b.c>\r\n")
+        self.assertEqual(app.type, "command")
+
+        app, _errors = SmtpParser.parse(b"250 OK\r\n")
+        self.assertEqual(app.type, "response")
+
+    def test_malformed_payload_is_still_unrecognized(self):
+        app, errors = SmtpParser.parse(b"RANDOM_INVALID_DATA_NOT_SMTP\r\n")
+        self.assertIsNone(app)
+        self.assertTrue(errors)
+
+
 if __name__ == "__main__":
     unittest.main()
