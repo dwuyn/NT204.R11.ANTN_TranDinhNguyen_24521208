@@ -387,6 +387,38 @@ EXPECTATIONS = {
             "và 2 ACK, flow được flush khi hết capture với close_reason end_of_capture."
         ),
     },
+    "bt2_t08_bidirectional": {
+        "min_events": 2,
+        "checks": [
+            {
+                "flow": {
+                    "flow_id": "TCP-10.0.0.10:52000-10.0.0.20:80",
+                    "direction": "forward",
+                }
+            },
+            {
+                "flow": {
+                    "flow_id": "TCP-10.0.0.10:52000-10.0.0.20:80",
+                    "direction": "backward",
+                }
+            },
+        ],
+        "min_flows": 1,
+        "flow_checks": [
+            {
+                "packet_count": 2,
+                "application_protocol": "HTTP",
+                "forward": {"packet_count": 1},
+                "backward": {"packet_count": 1},
+            }
+        ],
+        "description": "Gộp request/response hai chiều vào cùng một flow",
+        "criteria": (
+            "Request và response ngược chiều cùng 5-tuple thuộc một flow duy nhất với "
+            "flow_id ổn định, direction lần lượt là forward/backward, mỗi chiều 1 packet "
+            "và application_protocol được nhận là HTTP."
+        ),
+    },
 }
 
 
