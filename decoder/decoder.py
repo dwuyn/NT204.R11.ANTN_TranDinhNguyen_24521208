@@ -13,7 +13,12 @@ Every failure mode is captured in ``event.decode`` (``decode_status``,
 ``warnings``) so that a single malformed packet never stops the pipeline.
 """
 
+import base64
+import binascii
 import html
+import quopri
+import re
+from email.header import decode_header, make_header
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import unquote_to_bytes
 
@@ -135,6 +140,33 @@ def _decode_text(raw: bytes, charset: str, info: DecodeInfo) -> Tuple[str, bool]
         return raw.decode("utf-8", errors="replace"), False
 
 
+def _split_message(payload: bytes) -> Tuple[bytes, bytes]:
+    """Split a message into its header block and body at the first blank line."""
+    if b"\r\n\r\n" in payload:
+        return tuple(payload.split(b"\r\n\r\n", 1))  # type: ignore[return-value]
+    if b"\n\n" in payload:
+        return tuple(payload.split(b"\n\n", 1))  # type: ignore[return-value]
+    return payload, b""
+
+
+def _parse_raw_headers(header_raw: bytes) -> Dict[str, str]:
+    """Parse ``Key: value`` lines, keeping the original key case.
+
+    The first occurrence of a duplicated header wins, matching the SMTP parser.
+    """
+    headers: Dict[str, str] = {}
+    text = header_raw.decode("latin-1", errors="replace")
+    for line in text.split("\n"):
+        line = line.strip("\r")
+        if not line or ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.strip()
+        if key and key not in headers:
+            headers[key] = value.strip()
+    return headers
+
+
 class Decoder:
     """Decodes the application payload of a normalized event.
 
@@ -174,6 +206,12 @@ class Decoder:
         elif protocol == "DNS":
             # DNS wire format is binary by design; no text decoding applies.
             return
+        elif protocol == "SMTP" and app.type == "data":
+            # MIME message bodies are decoded through their own charset, so the
+            # raw-payload UTF-8 check would produce false "partial" verdicts.
+            if self.config.decode_mime:
+                self._decode_mime(payload, info)
+            return
         else:
             self._check_payload_text(payload, info)
 
@@ -186,6 +224,52 @@ class Decoder:
         except UnicodeDecodeError:
             _add_warning(info, "invalid_utf8_sequence")
             _escalate(info, "partial")
+
+    def _decode_mime(self, payload: bytes, info: DecodeInfo) -> None:
+        """Decode an e-mail (SMTP DATA) message: transfer encoding, charset, RFC 2047."""
+        header_raw, body_raw = _split_message(payload)
+        headers = _parse_raw_headers(header_raw)
+
+        declared = _header_value(headers, "content-transfer-encoding")
+        cte = (declared or "").strip().lower()
+        if declared is not None:
+            info.fields["content_transfer_encoding"] = cte or None
+
+        decoded_body = body_raw
+        if cte == "base64":
+            compact = re.sub(rb"\s+", b"", body_raw)
+            try:
+                decoded_body = base64.b64decode(compact, validate=False)
+                _add_decoder(info, "base64")
+            except (binascii.Error, ValueError):
+                _add_warning(info, "base64_decode_error")
+                _escalate(info, "partial")
+                decoded_body = body_raw
+        elif cte == "quoted-printable":
+            decoded_body = quopri.decodestring(body_raw)
+            _add_decoder(info, "quoted_printable")
+        # 7bit / 8bit / binary / absent / unknown: the body is used as-is.
+
+        main, params = _parse_content_type(_header_value(headers, "content-type"))
+        charset = _resolve_charset(params.get("charset"), info)
+        text, _ok = _decode_text(decoded_body, charset, info)
+        if self.config.decode_html_entities and main in ("text/html", "application/xhtml+xml"):
+            text = html.unescape(text)
+            _add_decoder(info, "html_entities")
+        info.fields["mime_charset"] = charset
+        info.fields["mime_body_decoded"] = text
+
+        decoded_headers: Dict[str, str] = {}
+        for key, value in headers.items():
+            if "=?" not in value or "?=" not in value:
+                continue
+            try:
+                decoded_headers[key] = str(make_header(decode_header(value)))
+                _add_decoder(info, "rfc2047")
+            except Exception:
+                _add_warning(info, "rfc2047_decode_error")
+        if decoded_headers:
+            info.fields["headers_decoded"] = decoded_headers
 
     def _decode_http(self, event: NormalizedEvent, payload: bytes, info: DecodeInfo) -> None:
         app = event.application

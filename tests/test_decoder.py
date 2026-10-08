@@ -287,5 +287,116 @@ class TestHttpDecoder(unittest.TestCase):
                 )
 
 
+class TestMimeDecoder(unittest.TestCase):
+    BASE64_MESSAGE = (
+        b"From: sender@uit.edu.vn\r\n"
+        b"To: rcpt@uit.edu.vn\r\n"
+        b"Subject: =?utf-8?B?VMOhaSBraG9hbg==?=\r\n"
+        b"MIME-Version: 1.0\r\n"
+        b"Content-Type: text/plain; charset=utf-8\r\n"
+        b"Content-Transfer-Encoding: base64\r\n"
+        b"\r\n"
+        b"SGVsbG8gV29ybGQhIFRoaXMgaXMgYSBiYXNlNjQgbWVzc2FnZS4="
+    )
+
+    QUOTED_PRINTABLE_MESSAGE = (
+        b"Content-Type: text/plain; charset=utf-8\r\n"
+        b"Content-Transfer-Encoding: quoted-printable\r\n"
+        b"\r\n"
+        b"H=E1=BB=87 th=E1=BB=91ng IDS =C4=91ang ho=E1=BA=A1t =C4=91=E1=BB=99ng."
+    )
+
+    def setUp(self):
+        self.decoder = Decoder(DecoderConfig())
+
+    def _decode(self, payload: bytes):
+        app = ApplicationLayer(protocol="SMTP", type="data", details={"mime": True})
+        event = _event(payload, app)
+        self.decoder.decode(event, payload)
+        return event
+
+    def test_base64_body_is_decoded(self):
+        event = self._decode(self.BASE64_MESSAGE)
+
+        self.assertEqual(
+            event.decode.fields["mime_body_decoded"], "Hello World! This is a base64 message."
+        )
+        self.assertEqual(event.decode.fields["content_transfer_encoding"], "base64")
+        self.assertEqual(event.decode.fields["mime_charset"], "utf-8")
+        self.assertIn("base64", event.decode.decoders)
+        self.assertEqual(event.decode.decode_status, "decoded")
+
+    def test_rfc2047_subject_header_is_decoded(self):
+        event = self._decode(self.BASE64_MESSAGE)
+
+        self.assertEqual(event.decode.fields["headers_decoded"]["Subject"], "Tái khoan")
+        self.assertIn("rfc2047", event.decode.decoders)
+
+    def test_quoted_printable_body_is_decoded(self):
+        event = self._decode(self.QUOTED_PRINTABLE_MESSAGE)
+
+        self.assertEqual(event.decode.fields["mime_body_decoded"], "Hệ thống IDS đang hoạt động.")
+        self.assertEqual(event.decode.fields["content_transfer_encoding"], "quoted-printable")
+        self.assertIn("quoted_printable", event.decode.decoders)
+
+    def test_broken_base64_stays_partial_without_raising(self):
+        payload = (
+            b"Content-Transfer-Encoding: base64\r\n"
+            b"\r\n"
+            b"!!!not-base64!!!"
+        )
+        event = self._decode(payload)
+
+        self.assertEqual(event.decode.decode_status, "partial")
+        self.assertIn("base64_decode_error", event.decode.warnings)
+        self.assertNotIn("base64", event.decode.decoders)
+
+    def test_8bit_body_with_invalid_utf8_is_partial(self):
+        payload = b"Content-Transfer-Encoding: 8bit\r\n\r\n" + b"\xff\xfe"
+        event = self._decode(payload)
+
+        self.assertEqual(event.decode.decode_status, "partial")
+        self.assertIn("invalid_utf8_sequence", event.decode.warnings)
+
+    def test_7bit_plain_body_is_used_as_is(self):
+        payload = b"Content-Transfer-Encoding: 7bit\r\n\r\nplain ascii body"
+        event = self._decode(payload)
+
+        self.assertEqual(event.decode.fields["mime_body_decoded"], "plain ascii body")
+        self.assertEqual(event.decode.decoders, [])
+        self.assertEqual(event.decode.decode_status, "unchanged")
+
+    def test_html_mime_body_gets_entity_decoding(self):
+        payload = (
+            b"Content-Type: text/html; charset=utf-8\r\n"
+            b"Content-Transfer-Encoding: 7bit\r\n"
+            b"\r\n"
+            b"<b>a &amp; b</b>"
+        )
+        event = self._decode(payload)
+
+        self.assertEqual(event.decode.fields["mime_body_decoded"], "<b>a & b</b>")
+        self.assertIn("html_entities", event.decode.decoders)
+
+    def test_mime_decoding_can_be_disabled(self):
+        decoder = Decoder(DecoderConfig(decode_mime=False))
+        app = ApplicationLayer(protocol="SMTP", type="data", details={"mime": True})
+        event = _event(self.BASE64_MESSAGE, app)
+        decoder.decode(event, self.BASE64_MESSAGE)
+
+        self.assertEqual(event.decode.decode_status, "unchanged")
+        self.assertEqual(event.decode.fields, {})
+        self.assertEqual(event.decode.decoders, [])
+
+    def test_smtp_command_payload_is_not_mime_decoded(self):
+        payload = b"MAIL FROM:<sender@uit.edu.vn>\r\n"
+        app = ApplicationLayer(protocol="SMTP", type="command", details={"command": "MAIL FROM"})
+        event = _event(payload, app)
+        self.decoder.decode(event, payload)
+
+        self.assertEqual(event.decode.decode_status, "unchanged")
+        self.assertNotIn("mime_body_decoded", event.decode.fields)
+
+
 if __name__ == "__main__":
     unittest.main()
