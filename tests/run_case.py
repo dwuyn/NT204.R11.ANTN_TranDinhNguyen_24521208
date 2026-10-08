@@ -275,6 +275,20 @@ EXPECTATIONS = {
             "và cả hai packet thuộc cùng một flow SMTP."
         ),
     },
+    "bt2_t04_invalid_bytes": {
+        "min_events": 2,
+        "checks": [
+            {"decode": {"decode_status": "partial", "warnings": ["invalid_utf8_sequence"]}},
+            {"application": {"protocol": "UNKNOWN"}, "decode": {"decode_status": "partial"}},
+            {"preprocess": {"preprocess_status": "partial", "reason": "unsupported_protocol"}},
+        ],
+        "description": "Xử lý byte không hợp lệ UTF-8 và payload giao thức không hỗ trợ",
+        "criteria": (
+            "Body chứa byte lỗi UTF-8 được giải mã thay thế và gắn trạng thái partial với "
+            "warning invalid_utf8_sequence, payload nhị phân lạ được nhận là UNKNOWN và "
+            "preprocessor trả về partial/unsupported_protocol."
+        ),
+    },
 }
 
 
