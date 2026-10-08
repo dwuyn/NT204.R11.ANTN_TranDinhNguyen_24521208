@@ -289,6 +289,42 @@ EXPECTATIONS = {
             "preprocessor trả về partial/unsupported_protocol."
         ),
     },
+    "bt2_t05_normalization": {
+        "min_events": 2,
+        "checks": [
+            {
+                "application": {
+                    "details": {
+                        "headers": {
+                            "Content-Type": "text/plain",
+                            "Host": "ids.security.lab:8080",
+                        }
+                    }
+                }
+            },
+            {
+                "application": {
+                    "details": {
+                        "uri_normalized": "/admin/secret?q=/",
+                        "uri": "//admin//./stats/%2e%2e/secret?q=%2f",
+                    }
+                }
+            },
+            {"preprocess": {"normalizations": ["http_header_names", "uri_path"]}},
+            {
+                "application": {"details": {"queries": [{"name": "portal.uit.edu.vn"}]}},
+                "preprocess": {"normalizations": ["domain_lowercase"]},
+            },
+        ],
+        "min_flows": 2,
+        "description": "Chuẩn hóa HTTP header, Host, URI path và tên miền DNS",
+        "criteria": (
+            "Header 'content-TYPE' thành 'Content-Type', 'hOSt' thành 'Host' với host viết "
+            "thường, URI '//admin//./stats/%2e%2e/secret?q=%2f' chuẩn hóa thành "
+            "'/admin/secret?q=/', QNAME 'PORTAL.UIT.EDU.VN' thành 'portal.uit.edu.vn' và "
+            "preprocess.normalizations ghi nhận đúng các loại đã thay đổi."
+        ),
+    },
 }
 
 
