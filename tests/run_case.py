@@ -325,6 +325,31 @@ EXPECTATIONS = {
             "preprocess.normalizations ghi nhận đúng các loại đã thay đổi."
         ),
     },
+    "bt2_t06_missing_field": {
+        "min_events": 2,
+        "checks": [
+            {
+                "network": None,
+                "transport": None,
+                "flow": None,
+                "preprocess": {
+                    "preprocess_status": "invalid",
+                    "reason": "missing_network_layer",
+                },
+            },
+            {
+                "application": {"protocol": "UNKNOWN"},
+                "preprocess": {"preprocess_status": "partial", "reason": "unsupported_protocol"},
+            },
+        ],
+        "min_flows": 1,
+        "description": "Xử lý event thiếu tầng mạng và thiếu giao thức ứng dụng hỗ trợ",
+        "criteria": (
+            "Packet ARP không có network/transport layer được đánh invalid với reason "
+            "missing_network_layer và không gắn flow; payload UDP lạ được đánh partial với "
+            "reason unsupported_protocol nhưng vẫn được theo dõi 1 flow UDP."
+        ),
+    },
 }
 
 
