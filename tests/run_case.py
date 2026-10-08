@@ -504,6 +504,37 @@ EXPECTATIONS = {
             "biệt, mỗi flow nhận đúng 2 packet và flow_id tương ứng từng kết nối."
         ),
     },
+    "bt2_t12_idle_timeout": {
+        "min_events": 3,
+        "checks": [
+            {
+                "flow": {
+                    "flow_id": "TCP-10.0.0.11:53000-10.0.0.20:8080",
+                    "is_new_flow": True,
+                }
+            },
+        ],
+        "min_flows": 2,
+        "flow_checks": [
+            {
+                "flow_id": "TCP-10.0.0.10:52000-10.0.0.20:80",
+                "close_reason": "timeout",
+                "state": "ESTABLISHED",
+                "packet_count": 2,
+            },
+            {
+                "flow_id": "TCP-10.0.0.11:53000-10.0.0.20:8080",
+                "close_reason": "end_of_capture",
+            },
+        ],
+        "args": ["--tcp-timeout", "5"],
+        "description": "Đóng flow TCP khi vượt idle timeout cấu hình được",
+        "criteria": (
+            "Với --tcp-timeout 5, flow thứ nhất im lặng 29.99s bị đóng với close_reason "
+            "timeout sau khi packet của flow thứ hai xuất hiện, flow thứ hai vẫn active và "
+            "được flush khi hết capture với close_reason end_of_capture."
+        ),
+    },
 }
 
 
