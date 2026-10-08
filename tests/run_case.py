@@ -1,20 +1,39 @@
 """Runner to execute a test case, generate output.jsonl, and generate report.md.
 
 Each test case has a registered set of assertions (EXPECTATIONS). A case only
-reports PASS when every expected JSON subset matches at least one parsed event
-and the minimum event count is reached. Otherwise the report says FAIL and the
-script exits with code 1.
+reports PASS when every expected JSON subset matches at least one parsed event,
+the minimum event count is reached, and (when configured) the minimum number of
+flow records is reached and every flow assertion matches.
+
+Registered keys per case:
+  min_events   minimum number of parsed events.
+  checks       list of JSON subsets; each subset must match at least one event.
+  pcap         optional pcap filename (default test.pcap).
+  min_flows    optional minimum number of flow records.
+  flow_checks  optional list of JSON subsets matched against flow records.
+  args         optional extra CLI arguments passed to main.py.
+  description  test objective (required to be included in `run_case.py all`).
+  criteria     verification criteria (required for `run_case.py all`).
+
+Usage:
+  python tests/run_case.py <case_name> "<description>" "<criteria>"
+  python tests/run_case.py all
 """
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 
 # Expected result per test case directory.
 #   min_events: minimum number of parsed events.
 #   checks: list of JSON subsets; each subset must match at least one event.
 #   pcap: optional pcap filename (default test.pcap).
+#   min_flows / flow_checks: optional flow record assertions.
+#   args: optional extra CLI arguments for main.py.
+#   description / criteria: required for `run_case.py all`.
 EXPECTATIONS = {
     "test_01_tcp_handshake": {
         "min_events": 3,
@@ -201,61 +220,133 @@ def _matches_any(events, expected) -> bool:
     return any(_subset_match(event, expected) for event in events)
 
 
+def _read_jsonl(path: str) -> list:
+    """Read a JSON Lines file into a list of records (empty when missing)."""
+    if not os.path.isfile(path):
+        return []
+    with open(path, "r", encoding="utf-8") as handle:
+        return [json.loads(line) for line in handle if line.strip()]
+
+
+def _resolve_paths(case_name: str, spec: dict):
+    """Return (case_dir, pcap, output, flows, temp_dir) for a case.
+
+    Assignment 1 cases keep their artifacts untouched: their flow records are
+    written to a temporary directory because those cases do not assert flows.
+    """
+    case_dir = os.path.join("TEST", case_name)
+    pcap_path = os.path.join(case_dir, spec.get("pcap", "test.pcap"))
+    output_path = os.path.join(case_dir, "output.jsonl")
+    if case_name.startswith("bt2_"):
+        return case_dir, pcap_path, output_path, os.path.join(case_dir, "flows.jsonl"), None
+    temp_dir = tempfile.mkdtemp(prefix="ids_flows_")
+    return case_dir, pcap_path, output_path, os.path.join(temp_dir, "flows.jsonl"), temp_dir
+
+
 def run_case(case_name: str, description: str, verification_criteria: str) -> int:
     spec = EXPECTATIONS.get(case_name)
-    case_dir = os.path.join("TEST", case_name)
-    pcap_path = os.path.join(case_dir, (spec or {}).get("pcap", "test.pcap"))
-    output_path = os.path.join(case_dir, "output.jsonl")
+    case_dir, pcap_path, output_path, flows_path, temp_dir = _resolve_paths(case_name, spec or {})
     report_path = os.path.join(case_dir, "report.md")
 
     if not os.path.isfile(pcap_path):
         print(f"[!] Error: {pcap_path} not found.")
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
         return 1
 
-    # Run main.py on the pcap
-    cmd = [sys.executable, "main.py", "--pcap", pcap_path, "--output", output_path]
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode != 0:
-        print(f"[!] main.py failed on {case_name}:\n{res.stderr}")
-        return res.returncode
+    try:
+        # Run main.py on the pcap
+        cmd = [
+            sys.executable,
+            "main.py",
+            "--pcap",
+            pcap_path,
+            "--output",
+            output_path,
+            "--flows-output",
+            flows_path,
+        ] + list(spec.get("args", []) if spec else [])
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode != 0:
+            print(f"[!] main.py failed on {case_name}:\n{res.stderr}")
+            return res.returncode
 
-    # Read output.jsonl
-    with open(output_path, "r", encoding="utf-8") as f:
-        events = [json.loads(line) for line in f if line.strip()]
+        events = _read_jsonl(output_path)
+        flows = _read_jsonl(flows_path)
 
-    # Verify registered assertions
-    failures = []
-    if spec is None:
-        failures.append(f"Chưa đăng ký kỳ vọng kiểm thử cho case '{case_name}'.")
-        checks = []
-        min_events = 0
-    else:
-        checks = spec["checks"]
-        min_events = spec["min_events"]
-        if len(events) < min_events:
-            failures.append(f"Cần tối thiểu {min_events} event, thực tế {len(events)}.")
-        for idx, check in enumerate(checks, start=1):
-            if not _matches_any(events, check):
-                failures.append(
-                    f"Không event nào khớp kỳ vọng #{idx}: "
-                    f"{json.dumps(check, ensure_ascii=False)}"
-                )
+        # Verify registered assertions
+        failures = []
+        min_flows = None
+        flow_checks = []
+        if spec is None:
+            failures.append(f"Chưa đăng ký kỳ vọng kiểm thử cho case '{case_name}'.")
+            checks = []
+            min_events = 0
+        else:
+            checks = spec["checks"]
+            min_events = spec["min_events"]
+            if len(events) < min_events:
+                failures.append(f"Cần tối thiểu {min_events} event, thực tế {len(events)}.")
+            for idx, check in enumerate(checks, start=1):
+                if not _matches_any(events, check):
+                    failures.append(
+                        f"Không event nào khớp kỳ vọng #{idx}: "
+                        f"{json.dumps(check, ensure_ascii=False)}"
+                    )
 
-    status = "PASS (Thành công)" if not failures else "FAIL (Thất bại)"
-    result_lines = (
-        "\n".join(f"- {line}" for line in failures)
-        if failures
-        else "- Tất cả kỳ vọng kiểm thử đều khớp với output thực tế."
-    )
+            min_flows = spec.get("min_flows")
+            if min_flows is not None and len(flows) < min_flows:
+                failures.append(f"Cần tối thiểu {min_flows} flow record, thực tế {len(flows)}.")
+            flow_checks = spec.get("flow_checks", [])
+            for idx, check in enumerate(flow_checks, start=1):
+                if not _matches_any(flows, check):
+                    failures.append(
+                        f"Không flow nào khớp kỳ vọng #{idx}: "
+                        f"{json.dumps(check, ensure_ascii=False)}"
+                    )
 
-    # Write report.md
-    report_content = f"""# Test Case Report: {case_name}
+        status = "PASS (Thành công)" if not failures else "FAIL (Thất bại)"
+        result_lines = (
+            "\n".join(f"- {line}" for line in failures)
+            if failures
+            else "- Tất cả kỳ vọng kiểm thử đều khớp với output thực tế."
+        )
+
+        flow_header = ""
+        flow_assertions = ""
+        flow_section = ""
+        if case_name.startswith("bt2_"):
+            flow_header = (
+                f"- **File Flow Records**: `{flows_path}`\n"
+                f"- **Số flow record**: {len(flows)}"
+            )
+            flow_assertions = f"""- Số flow tối thiểu: **{min_flows if min_flows is not None else 0}**
+- Danh sách flow subset bắt buộc phải khớp:
+```json
+{json.dumps(flow_checks, indent=2, ensure_ascii=False)}
+```"""
+            flow_section = f"""
+## 5. Flow Records (flows.jsonl)
+- **Số flow record**: {len(flows)}
+- **Số flow tối thiểu**: {min_flows if min_flows is not None else 0}
+- **Kỳ vọng flow (JSON subset)**:
+```json
+{json.dumps(flow_checks, indent=2, ensure_ascii=False)}
+```
+- **Chi tiết flow records**:
+```json
+{json.dumps(flows, indent=2, ensure_ascii=False)}
+```
+"""
+
+        # Write report.md
+        report_content = f"""# Test Case Report: {case_name}
 
 - **Mục tiêu**: {description}
 - **Yêu cầu kiểm thử**: {verification_criteria}
 - **File PCAP**: `{pcap_path}`
 - **File Output JSONL**: `{output_path}`
-- **Số gói tin đã xử lý**: {len(events)}
+{flow_header}- **Số gói tin đã xử lý**: {len(events)}
 - **Trạng thái**: **{status}**
 
 ---
@@ -271,6 +362,7 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
 ```json
 {json.dumps(checks, indent=2, ensure_ascii=False)}
 ```
+{flow_assertions}
 
 ## 3. Đánh giá tính đúng đắn
 {result_lines}
@@ -281,16 +373,47 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
 ```json
 {json.dumps(events, indent=2, ensure_ascii=False)}
 ```
-"""
-    with open(report_path, "w", encoding="utf-8") as f:
-        f.write(report_content)
+{flow_section}"""
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(report_content)
 
-    print(f"[+] Case {case_name}: {status}. Report written to {report_path}")
-    return 0 if not failures else 1
+        print(f"[+] Case {case_name}: {status}. Report written to {report_path}")
+        return 0 if not failures else 1
+    finally:
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def run_all() -> int:
+    """Run every case that registers a description and criteria."""
+    selected = [
+        case
+        for case, spec in EXPECTATIONS.items()
+        if spec.get("description") and spec.get("criteria")
+    ]
+    if not selected:
+        print("No cases registered.")
+        return 0
+
+    failed = []
+    for case in selected:
+        spec = EXPECTATIONS[case]
+        if run_case(case, spec["description"], spec["criteria"]) != 0:
+            failed.append(case)
+
+    print("-" * 60)
+    print(f"[+] {len(selected) - len(failed)}/{len(selected)} cases PASS")
+    if failed:
+        print(f"[!] FAILED cases: {', '.join(failed)}")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 2 and sys.argv[1] == "all":
+        sys.exit(run_all())
     if len(sys.argv) < 4:
         print("Usage: python run_case.py <case_name> <description> <criteria>")
+        print("       python run_case.py all")
         sys.exit(1)
     sys.exit(run_case(sys.argv[1], sys.argv[2], sys.argv[3]))
