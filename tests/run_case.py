@@ -350,6 +350,43 @@ EXPECTATIONS = {
             "reason unsupported_protocol nhưng vẫn được theo dõi 1 flow UDP."
         ),
     },
+    "bt2_t07_tcp_handshake": {
+        "min_events": 3,
+        "checks": [
+            {
+                "transport": {"handshake": "SYN"},
+                "flow": {"direction": "forward", "is_new_flow": True, "state": "HANDSHAKE"},
+            },
+            {"transport": {"handshake": "SYN-ACK"}, "flow": {"direction": "backward"}},
+            {
+                "transport": {"handshake": "ACK"},
+                "flow": {
+                    "state": "ESTABLISHED",
+                    "flow_id": "TCP-10.0.0.10:51234-10.0.0.1:80",
+                },
+            },
+        ],
+        "min_flows": 1,
+        "flow_checks": [
+            {
+                "state": "ESTABLISHED",
+                "packet_count": 3,
+                "forward": {"packet_count": 2},
+                "backward": {"packet_count": 1},
+                "syn_count": 2,
+                "ack_count": 2,
+                "fin_count": 0,
+                "rst_count": 0,
+                "close_reason": "end_of_capture",
+            }
+        ],
+        "description": "Theo dõi flow TCP qua ba bước bắt tay SYN, SYN-ACK, ACK",
+        "criteria": (
+            "Ba packet cùng 5-tuple tạo đúng 1 flow, state chuyển HANDSHAKE -> ESTABLISHED, "
+            "hướng forward/backward chính xác, đếm đủ 2 SYN (SYN-ACK tính vào cả SYN và ACK) "
+            "và 2 ACK, flow được flush khi hết capture với close_reason end_of_capture."
+        ),
+    },
 }
 
 
