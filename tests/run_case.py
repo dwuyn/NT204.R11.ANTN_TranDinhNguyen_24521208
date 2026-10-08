@@ -458,6 +458,35 @@ EXPECTATIONS = {
             "close_reason rst; cả hai flow record đều được ghi."
         ),
     },
+    "bt2_t10_udp_dns": {
+        "min_events": 2,
+        "checks": [
+            {
+                "application": {"type": "query"},
+                "flow": {"flow_id": "UDP-192.168.1.100:53000-8.8.8.8:53"},
+            },
+            {"application": {"type": "response"}},
+        ],
+        "min_flows": 1,
+        "flow_checks": [
+            {
+                "protocol": "UDP",
+                "state": "ESTABLISHED",
+                "packet_count": 2,
+                "byte_count": 159,
+                "forward": {"packet_count": 1},
+                "backward": {"packet_count": 1},
+                "application_protocol": "DNS",
+                "syn_count": 0,
+            }
+        ],
+        "description": "Theo dõi flow UDP cho cặp DNS query/response",
+        "criteria": (
+            "Query và response DNS cùng 5-tuple tạo đúng 1 flow UDP ở trạng thái ESTABLISHED "
+            "ngay từ packet đầu, đếm 2 packet (159 byte) chia đều hai chiều, "
+            "application_protocol là DNS và không có cờ TCP nào được đếm."
+        ),
+    },
 }
 
 
