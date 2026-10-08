@@ -5,7 +5,15 @@ import os
 import tempfile
 import unittest
 
-from parsers.models import ApplicationLayer, NetworkLayer, NormalizedEvent, TransportLayer
+from parsers.models import (
+    ApplicationLayer,
+    DecodeInfo,
+    FlowRef,
+    NetworkLayer,
+    NormalizedEvent,
+    PreprocessInfo,
+    TransportLayer,
+)
 from storage.logger import JsonLinesLogger
 
 
@@ -105,6 +113,82 @@ class TestNormalizedEventModels(unittest.TestCase):
         self.assertIn("192.168.1.1 -> 192.168.1.2", summary)
         self.assertIn(":1234 -> :80 [SYN]", summary)
         self.assertIn("HTTP (request)", summary)
+
+
+class TestAssignmentTwoSchema(unittest.TestCase):
+    def test_pipeline_one_event_has_null_sections(self):
+        event = NormalizedEvent(packet_id=1, timestamp=1000.0, raw_len=64)
+        data = event.to_dict()
+        self.assertIsNone(data["decode"])
+        self.assertIsNone(data["preprocess"])
+        self.assertIsNone(data["flow"])
+
+    def test_event_with_all_sections_serializes(self):
+        event = NormalizedEvent(
+            packet_id=7,
+            timestamp=1700000000.0,
+            raw_len=120,
+            network=NetworkLayer(src_ip="10.0.0.10", dst_ip="10.0.0.20", proto="TCP"),
+            transport=TransportLayer(layer="TCP", src_port=52000, dst_port=80, payload_len=56),
+            application=ApplicationLayer(protocol="HTTP", type="request"),
+            decode=DecodeInfo(
+                decode_status="decoded",
+                decoders=["percent_url"],
+                fields={"uri_decoded": "/search?q=' OR 1=1"},
+            ),
+            preprocess=PreprocessInfo(
+                preprocess_status="valid",
+                processing_action="forward",
+                normalizations=["protocol_name"],
+            ),
+            flow=FlowRef(
+                flow_id="TCP-10.0.0.10:52000-10.0.0.20:80",
+                direction="forward",
+                state="ESTABLISHED",
+                is_new_flow=True,
+            ),
+        )
+        data = event.to_dict()
+        self.assertEqual(data["decode"]["decode_status"], "decoded")
+        self.assertEqual(data["decode"]["decoders"], ["percent_url"])
+        self.assertEqual(data["decode"]["fields"]["uri_decoded"], "/search?q=' OR 1=1")
+        self.assertEqual(data["decode"]["warnings"], [])
+        self.assertEqual(data["preprocess"]["preprocess_status"], "valid")
+        self.assertEqual(data["preprocess"]["processing_action"], "forward")
+        self.assertIsNone(data["preprocess"]["reason"])
+        self.assertEqual(data["preprocess"]["normalizations"], ["protocol_name"])
+        self.assertEqual(data["flow"]["flow_id"], "TCP-10.0.0.10:52000-10.0.0.20:80")
+        self.assertEqual(data["flow"]["direction"], "forward")
+        self.assertTrue(data["flow"]["is_new_flow"])
+
+        round_tripped = json.loads(event.to_json())
+        self.assertEqual(round_tripped, data)
+
+    def test_section_dataclasses_do_not_share_mutable_state(self):
+        first = DecodeInfo()
+        second = DecodeInfo()
+        first.decoders.append("base64")
+        first.fields["k"] = "v"
+        first.warnings.append("w")
+        self.assertEqual(second.decoders, [])
+        self.assertEqual(second.fields, {})
+        self.assertEqual(second.warnings, [])
+
+        first_pre = PreprocessInfo()
+        second_pre = PreprocessInfo()
+        first_pre.normalizations.append("uri_path")
+        first_pre.warnings.append("duplicate_header_name")
+        self.assertEqual(second_pre.normalizations, [])
+        self.assertEqual(second_pre.warnings, [])
+
+    def test_decode_info_defaults(self):
+        info = DecodeInfo().to_dict()
+        self.assertEqual(info, {
+            "decode_status": "unchanged",
+            "decoders": [],
+            "fields": {},
+            "warnings": [],
+        })
 
 
 if __name__ == "__main__":

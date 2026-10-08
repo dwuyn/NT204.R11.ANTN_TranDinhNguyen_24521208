@@ -90,6 +90,59 @@ class ApplicationLayer:
 
 
 @dataclass
+class DecodeInfo:
+    """Decoded representation of an event's application payload."""
+    decode_status: str = "unchanged"  # error, partial, decoded, skipped, unchanged
+    decoders: List[str] = field(default_factory=list)
+    fields: Dict[str, Any] = field(default_factory=dict)
+    warnings: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "decode_status": self.decode_status,
+            "decoders": list(self.decoders),
+            "fields": dict(self.fields),
+            "warnings": list(self.warnings),
+        }
+
+
+@dataclass
+class PreprocessInfo:
+    """Validation/normalization outcome produced by the preprocessor."""
+    preprocess_status: str = ""  # valid, partial, invalid
+    processing_action: str = ""  # forward, dropped
+    reason: Optional[str] = None
+    normalizations: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "preprocess_status": self.preprocess_status,
+            "processing_action": self.processing_action,
+            "reason": self.reason,
+            "normalizations": list(self.normalizations),
+            "warnings": list(self.warnings),
+        }
+
+
+@dataclass
+class FlowRef:
+    """Reference to the flow an event was attributed to."""
+    flow_id: str = ""
+    direction: str = ""  # forward, backward
+    state: str = ""
+    is_new_flow: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "flow_id": self.flow_id,
+            "direction": self.direction,
+            "state": self.state,
+            "is_new_flow": self.is_new_flow,
+        }
+
+
+@dataclass
 class NormalizedEvent:
     """Standardized event structure representing a parsed packet for IDS analysis."""
     packet_id: int
@@ -100,6 +153,9 @@ class NormalizedEvent:
     transport: Optional[TransportLayer] = None
     application: Optional[ApplicationLayer] = None
     errors: List[str] = field(default_factory=list)
+    decode: Optional[DecodeInfo] = None
+    preprocess: Optional[PreprocessInfo] = None
+    flow: Optional[FlowRef] = None
 
     def __post_init__(self) -> None:
         if not self.timestamp_iso and self.timestamp:
@@ -119,6 +175,9 @@ class NormalizedEvent:
             "network": self.network.to_dict() if self.network else None,
             "transport": self.transport.to_dict() if self.transport else None,
             "application": self.application.to_dict() if self.application else None,
+            "decode": self.decode.to_dict() if self.decode else None,
+            "preprocess": self.preprocess.to_dict() if self.preprocess else None,
+            "flow": self.flow.to_dict() if self.flow else None,
             "errors": list(self.errors),
         }
 
