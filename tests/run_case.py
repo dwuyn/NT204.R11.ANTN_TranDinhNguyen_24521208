@@ -214,6 +214,33 @@ EXPECTATIONS = {
             "chứa chuỗi %27%20OR%201%3D1 đã giải mã, event hợp lệ (forward) và có 1 flow TCP."
         ),
     },
+    "bt2_t02_html_entity": {
+        "min_events": 1,
+        "checks": [
+            {
+                "application": {
+                    "details": {
+                        "body": "<p>Hello &lt;script&gt;alert(1)&lt;/script&gt; &amp; welcome</p>"
+                    }
+                }
+            },
+            {
+                "decode": {
+                    "decoders": ["html_entities"],
+                    "fields": {
+                        "body_decoded": "<p>Hello <script>alert(1)</script> & welcome</p>",
+                        "body_charset": "utf-8",
+                        "body_decode_status": "ok",
+                    },
+                }
+            },
+        ],
+        "description": "Giải mã HTML entity trong body của HTTP response text/html",
+        "criteria": (
+            "Body gốc vẫn giữ nguyên entity, decode.fields.body_decoded đã unescape "
+            "&lt;script&gt; thành <script>, charset là utf-8 và body_decode_status là ok."
+        ),
+    },
 }
 
 
