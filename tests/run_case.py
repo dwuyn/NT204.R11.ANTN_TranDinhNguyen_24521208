@@ -241,6 +241,40 @@ EXPECTATIONS = {
             "&lt;script&gt; thành <script>, charset là utf-8 và body_decode_status là ok."
         ),
     },
+    "bt2_t03_smtp_mime": {
+        "min_events": 2,
+        "checks": [
+            {"application": {"protocol": "SMTP", "type": "data"}},
+            {
+                "decode": {
+                    "fields": {
+                        "mime_body_decoded": "Hello World! This is a base64 message.",
+                        "content_transfer_encoding": "base64",
+                    },
+                    "decoders": ["base64"],
+                }
+            },
+            {
+                "decode": {
+                    "fields": {
+                        "mime_body_decoded": "Hệ thống IDS đang hoạt động.",
+                        "content_transfer_encoding": "quoted-printable",
+                    },
+                    "decoders": ["quoted_printable"],
+                }
+            },
+            {"decode": {"fields": {"headers_decoded": {"Subject": "Tái khoan"}}}},
+        ],
+        "min_flows": 1,
+        "flow_checks": [{"application_protocol": "SMTP", "packet_count": 2}],
+        "description": "Giải mã MIME base64, quoted-printable và header RFC 2047 trong SMTP DATA",
+        "criteria": (
+            "Hai packet MIME được nhận là SMTP data, body base64 giải mã thành "
+            "'Hello World! This is a base64 message.', body quoted-printable giải mã thành "
+            "'Hệ thống IDS đang hoạt động.', header Subject RFC 2047 giải mã thành 'Tái khoan', "
+            "và cả hai packet thuộc cùng một flow SMTP."
+        ),
+    },
 }
 
 
