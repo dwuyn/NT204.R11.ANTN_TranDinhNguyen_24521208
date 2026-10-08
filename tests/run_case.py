@@ -487,6 +487,23 @@ EXPECTATIONS = {
             "application_protocol là DNS và không có cờ TCP nào được đếm."
         ),
     },
+    "bt2_t11_concurrent_flows": {
+        "min_events": 6,
+        "checks": [
+            {"flow": {"direction": "forward"}},
+        ],
+        "min_flows": 3,
+        "flow_checks": [
+            {"flow_id": "TCP-10.0.0.10:52000-10.0.0.20:80", "packet_count": 2},
+            {"flow_id": "TCP-10.0.0.11:52001-10.0.0.20:80", "packet_count": 2},
+            {"flow_id": "TCP-10.0.0.10:52002-10.0.0.30:443", "packet_count": 2},
+        ],
+        "description": "Theo dõi đồng thời ba flow xen kẽ nhau",
+        "criteria": (
+            "Sáu packet thuộc ba 5-tuple xen kẽ theo thời gian tạo đúng 3 flow record riêng "
+            "biệt, mỗi flow nhận đúng 2 packet và flow_id tương ứng từng kết nối."
+        ),
+    },
 }
 
 
