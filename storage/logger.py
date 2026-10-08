@@ -1,12 +1,12 @@
 """JSON Lines logger for IDS events."""
 
 import os
-from typing import Optional, TextIO
+from typing import Any, Optional, TextIO
 from parsers.models import NormalizedEvent
 
 
 class JsonLinesLogger:
-    """Logs normalized IDS events to a JSON Lines file and/or terminal."""
+    """Logs JSON records (normalized events, flow records) to a JSON Lines file."""
 
     def __init__(
         self,
@@ -21,14 +21,14 @@ class JsonLinesLogger:
             os.makedirs(os.path.dirname(os.path.abspath(self.filepath)), exist_ok=True)
             self._file = open(self.filepath, "w", encoding="utf-8")
 
-    def log(self, event: NormalizedEvent) -> None:
-        """Write a single event to the JSON Lines file and optionally print summary."""
+    def log(self, record: Any) -> None:
+        """Write a single record to the JSON Lines file and optionally print a summary."""
         if self._file:
-            self._file.write(event.to_json() + "\n")
+            self._file.write(record.to_json() + "\n")
             self._file.flush()
 
-        if self.console_summary:
-            print(self.format_summary(event))
+        if self.console_summary and hasattr(record, "packet_id"):
+            print(self.format_summary(record))
 
     @staticmethod
     def format_summary(event: NormalizedEvent) -> str:

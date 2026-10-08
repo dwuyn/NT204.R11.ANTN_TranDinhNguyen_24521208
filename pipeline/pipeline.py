@@ -5,7 +5,7 @@ Raw Packet -> Network Parser -> Transport Parser -> App Detector -> App Parser -
 Unified for both Live Capture and PCAP import.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from capture.capturer import CapturedPacket
 from parsers.application.dns import DnsParser
@@ -27,6 +27,15 @@ class ParsingPipeline:
         """Execute the end-to-end parsing pipeline on a single captured packet.
 
         Guaranteed not to raise unhandled exceptions even on severely malformed packets.
+        """
+        event, _raw_payload = self.parse(captured)
+        return event
+
+    def parse(self, captured: CapturedPacket) -> Tuple[NormalizedEvent, bytes]:
+        """Parse a captured packet into a normalized event plus its raw payload.
+
+        The raw transport payload is returned so that later stages (decoder,
+        preprocessor, flow tracker) never need access to the Scapy packet.
         """
         all_errors: List[str] = []
         network_layer = None
@@ -97,4 +106,4 @@ class ParsingPipeline:
             application=application_layer,
             errors=all_errors,
         )
-        return event
+        return event, raw_payload

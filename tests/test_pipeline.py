@@ -74,5 +74,35 @@ class TestParsingPipeline(unittest.TestCase):
         self.assertIn("Catastrophic header failure", event.errors[0])
 
 
+    def test_parse_returns_event_and_raw_payload(self):
+        payload = b"POST /api/login HTTP/1.1\r\nHost: api.test\r\n\r\nuser=test"
+        pkt = IP(src="10.0.0.1", dst="10.0.0.2") / TCP(sport=50001, dport=80, flags="PA") / Raw(payload)
+        captured = CapturedPacket(packet_id=6, timestamp=105.0, packet=pkt, raw_bytes=bytes(pkt))
+
+        event, raw_payload = self.pipeline.parse(captured)
+
+        self.assertEqual(raw_payload, payload)
+        self.assertEqual(event.application.details["uri"], "/api/login")
+
+    def test_parse_returns_empty_payload_without_transport(self):
+        pkt = Ether() / ARP()
+        captured = CapturedPacket(packet_id=7, timestamp=106.0, packet=pkt, raw_bytes=bytes(pkt))
+
+        event, raw_payload = self.pipeline.parse(captured)
+
+        self.assertEqual(raw_payload, b"")
+        self.assertIsNone(event.network)
+
+    def test_process_packet_still_matches_parse(self):
+        payload = b"GET /x HTTP/1.1\r\nHost: a\r\n\r\n"
+        pkt = IP(src="10.0.0.1", dst="10.0.0.2") / TCP(sport=50002, dport=80, flags="PA") / Raw(payload)
+        captured = CapturedPacket(packet_id=8, timestamp=107.0, packet=pkt, raw_bytes=bytes(pkt))
+
+        event = self.pipeline.process_packet(captured)
+
+        self.assertEqual(event.to_dict()["application"]["details"]["uri"], "/x")
+        self.assertIsNone(event.decode)  # decode is attached by the engine, not the parser
+
+
 if __name__ == "__main__":
     unittest.main()
