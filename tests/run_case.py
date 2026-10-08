@@ -190,6 +190,30 @@ EXPECTATIONS = {
             {"application": {"protocol": "HTTP", "details": {"method": "GET"}}},
         ],
     },
+    # ------------------------------------------------------------------
+    # Assignment 2 cases (decoder, preprocessor, flow tracker)
+    # ------------------------------------------------------------------
+    "bt2_t01_http_url_decode": {
+        "min_events": 1,
+        "checks": [
+            {"application": {"details": {"uri": "/search?q=%27%20OR%201%3D1&lang=en"}}},
+            {
+                "decode": {
+                    "decode_status": "decoded",
+                    "fields": {"uri_decoded": "/search?q=' OR 1=1&lang=en"},
+                }
+            },
+            {
+                "preprocess": {"preprocess_status": "valid", "processing_action": "forward"},
+            },
+        ],
+        "min_flows": 1,
+        "description": "Giải mã percent-encoding trên URI của HTTP request",
+        "criteria": (
+            "Event HTTP request giữ nguyên URI gốc đã mã hóa, decode.fields.uri_decoded "
+            "chứa chuỗi %27%20OR%201%3D1 đã giải mã, event hợp lệ (forward) và có 1 flow TCP."
+        ),
+    },
 }
 
 
