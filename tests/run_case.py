@@ -419,6 +419,45 @@ EXPECTATIONS = {
             "và application_protocol được nhận là HTTP."
         ),
     },
+    "bt2_t09_tcp_close": {
+        "min_events": 6,
+        "checks": [
+            {
+                "flow": {
+                    "flow_id": "TCP-10.0.0.10:51001-10.0.0.30:80",
+                    "state": "CLOSED",
+                }
+            },
+            {
+                "flow": {
+                    "flow_id": "TCP-10.0.0.10:51002-10.0.0.30:8080",
+                    "state": "RESET",
+                }
+            },
+        ],
+        "min_flows": 2,
+        "flow_checks": [
+            {
+                "flow_id": "TCP-10.0.0.10:51001-10.0.0.30:80",
+                "state": "CLOSED",
+                "close_reason": "fin",
+                "fin_count": 2,
+                "packet_count": 6,
+            },
+            {
+                "flow_id": "TCP-10.0.0.10:51002-10.0.0.30:8080",
+                "state": "RESET",
+                "close_reason": "rst",
+                "rst_count": 1,
+            },
+        ],
+        "description": "Đóng flow TCP bằng FIN hai chiều và bằng RST",
+        "criteria": (
+            "Flow thứ nhất qua chuỗi SYN, SYN-ACK, ACK, FIN, ACK, FIN chuyển sang CLOSED "
+            "với close_reason fin và 2 FIN; flow thứ hai SYN rồi RST chuyển sang RESET với "
+            "close_reason rst; cả hai flow record đều được ghi."
+        ),
+    },
 }
 
 
