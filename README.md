@@ -160,24 +160,26 @@ NT204.R11.ANTN_TranDinhNguyen_24521208/
 │   ├── test_rule_matcher.py        # Unit test matcher (header/flow/flags/dsize/content)
 │   ├── test_detection.py           # Unit test DetectionEvent
 │   └── test_rule_evaluator.py      # Unit test evaluator (multi-match, stop_on_first_match)
-└── TEST/                           # Thư mục chứa test cases của cả ba bài tập
-    ├── test_01_tcp_handshake/      # BT1 - Test TCP Handshake (SYN, SYN-ACK, ACK)
-    ├── ...                         # BT1 - test_02 ... test_14
-    ├── test_14_truncated_pcap/     # BT1 - file PCAP bị cắt cụt
-    ├── bt2_t01_http_url_decode/    # BT2 - Decoder: percent-encoding trên URI
-    ├── bt2_t02_html_entity/        # BT2 - Decoder: HTML entity
-    ├── bt2_t03_smtp_mime/          # BT2 - Decoder: MIME base64 / quoted-printable / RFC 2047
-    ├── bt2_t04_invalid_bytes/      # BT2 - Decoder: byte không hợp lệ UTF-8
-    ├── bt2_t05_normalization/      # BT2 - Preprocessor: chuẩn hóa header/Host/URI/domain
-    ├── bt2_t06_missing_field/      # BT2 - Preprocessor: thiếu tầng mạng / protocol lạ
-    ├── bt2_t07_tcp_handshake/      # BT2 - Flow: bắt tay TCP
-    ├── bt2_t08_bidirectional/      # BT2 - Flow: một flow hai chiều
-    ├── bt2_t09_tcp_close/          # BT2 - Flow: đóng bằng FIN và bằng RST
-    ├── bt2_t10_udp_dns/            # BT2 - Flow: UDP DNS query/response
-    ├── bt2_t11_concurrent_flows/   # BT2 - Flow: nhiều flow đồng thời
-    ├── bt2_t12_idle_timeout/       # BT2 - Flow: idle timeout cấu hình được
-    ├── bt2_t13_statistics/         # BT2 - Flow: thống kê chi tiết
-    ├── bt2_t14_malformed_event/    # BT2 - Event lỗi + PCAP cắt cụt
+└── TEST/                           # Thư mục chứa test cases, chia theo từng bài tập
+    ├── BT1/                        # BT1 - Packet Capture & Parser (test_01 ... test_14)
+    │   ├── test_01_tcp_handshake/  # BT1 - TCP Handshake (SYN, SYN-ACK, ACK)
+    │   ├── ...                     # BT1 - test_02 ... test_13
+    │   └── test_14_truncated_pcap/ # BT1 - file PCAP bị cắt cụt
+    ├── BT2/                        # BT2 - Decoder, Preprocessor, Flow Tracker
+    │   ├── bt2_t01_http_url_decode/    # Decoder: percent-encoding trên URI
+    │   ├── bt2_t02_html_entity/        # Decoder: HTML entity
+    │   ├── bt2_t03_smtp_mime/          # Decoder: MIME base64 / quoted-printable / RFC 2047
+    │   ├── bt2_t04_invalid_bytes/      # Decoder: byte không hợp lệ UTF-8
+    │   ├── bt2_t05_normalization/      # Preprocessor: chuẩn hóa header/Host/URI/domain
+    │   ├── bt2_t06_missing_field/      # Preprocessor: thiếu tầng mạng / protocol lạ
+    │   ├── bt2_t07_tcp_handshake/      # Flow: bắt tay TCP
+    │   ├── bt2_t08_bidirectional/      # Flow: một flow hai chiều
+    │   ├── bt2_t09_tcp_close/          # Flow: đóng bằng FIN và bằng RST
+    │   ├── bt2_t10_udp_dns/            # Flow: UDP DNS query/response
+    │   ├── bt2_t11_concurrent_flows/   # Flow: nhiều flow đồng thời
+    │   ├── bt2_t12_idle_timeout/       # Flow: idle timeout cấu hình được
+    │   ├── bt2_t13_statistics/         # Flow: thống kê chi tiết
+    │   └── bt2_t14_malformed_event/    # Event lỗi + PCAP cắt cụt
     └── BT3/                        # BT3 - Core Engine & Snort Rule Matching
         ├── t01_rule_loader/        # BT3 - T01: nạp nhiều file rules, bỏ comment, warning
         ├── t02_invalid_rule/       # BT3 - T02: rule sai cú pháp → invalid + lý do
@@ -271,7 +273,7 @@ Thứ tự ưu tiên: **giá trị mặc định < file `--config` < tham số C
 
 ```bash
 # A. Phân tích file PCAP (ghi event + flow record)
-python3 main.py --pcap TEST/bt2_t13_statistics/test.pcap \
+python3 main.py --pcap TEST/BT2/bt2_t13_statistics/test.pcap \
                 --output output.jsonl --flows-output flows.jsonl
 
 # B. Bật cấu hình từ file JSON và override timeout bằng CLI
@@ -558,20 +560,20 @@ Mỗi dòng là một detection event JSON (chỉ sinh khi ruleset không rỗng
 
 | STT | Tên Test Case | Mục tiêu kiểm thử | Trạng thái | Thư mục |
 |:---:|:---|:---|:---:|:---|
-| 01 | **TCP Handshake** | Nhận diện đúng SYN, SYN/ACK, ACK | **PASS** | `TEST/test_01_tcp_handshake/` |
-| 02 | **TCP Data** | Parse TCP packet có payload và kiểm tra độ dài | **PASS** | `TEST/test_02_tcp_data/` |
-| 03 | **UDP** | Parse UDP packet, trích xuất port, payload | **PASS** | `TEST/test_03_udp/` |
-| 04 | **HTTP GET** | Parse HTTP request method, URI, headers | **PASS** | `TEST/test_04_http_get/` |
-| 05 | **HTTP POST** | Parse HTTP request có body, headers | **PASS** | `TEST/test_05_http_post/` |
-| 06 | **HTTP Response** | Parse HTTP status code, headers, reason | **PASS** | `TEST/test_06_http_response/` |
-| 07 | **DNS Query** | Parse domain name và query type (A, AAAA...) | **PASS** | `TEST/test_07_dns_query/` |
-| 08 | **DNS Response** | Parse answer records (name, type, rdata, ttl) | **PASS** | `TEST/test_08_dns_response/` |
-| 09 | **SMTP Command** | Parse HELO/EHLO, MAIL FROM, RCPT TO | **PASS** | `TEST/test_09_smtp_command/` |
-| 10 | **SMTP Response** | Parse SMTP status codes (220, 250, 354) | **PASS** | `TEST/test_10_smtp_response/` |
-| 11 | **Unknown Protocol** | Xử lý an toàn không crash khi gặp protocol lạ | **PASS** | `TEST/test_11_unknown_protocol/` |
-| 12 | **Malformed Packet** | Xử lý an toàn không crash khi gặp packet hỏng | **PASS** | `TEST/test_12_malformed_packet/` |
-| 13 | **Non-standard Port** (bổ sung) | Nhận diện HTTP/SMTP/DNS trên port phi tiêu chuẩn | **PASS** | `TEST/test_13_non_standard_port/` |
-| 14 | **Truncated PCAP** (bổ sung) | Không crash khi file PCAP bị cắt cụt | **PASS** | `TEST/test_14_truncated_pcap/` |
+| 01 | **TCP Handshake** | Nhận diện đúng SYN, SYN/ACK, ACK | **PASS** | `TEST/BT1/test_01_tcp_handshake/` |
+| 02 | **TCP Data** | Parse TCP packet có payload và kiểm tra độ dài | **PASS** | `TEST/BT1/test_02_tcp_data/` |
+| 03 | **UDP** | Parse UDP packet, trích xuất port, payload | **PASS** | `TEST/BT1/test_03_udp/` |
+| 04 | **HTTP GET** | Parse HTTP request method, URI, headers | **PASS** | `TEST/BT1/test_04_http_get/` |
+| 05 | **HTTP POST** | Parse HTTP request có body, headers | **PASS** | `TEST/BT1/test_05_http_post/` |
+| 06 | **HTTP Response** | Parse HTTP status code, headers, reason | **PASS** | `TEST/BT1/test_06_http_response/` |
+| 07 | **DNS Query** | Parse domain name và query type (A, AAAA...) | **PASS** | `TEST/BT1/test_07_dns_query/` |
+| 08 | **DNS Response** | Parse answer records (name, type, rdata, ttl) | **PASS** | `TEST/BT1/test_08_dns_response/` |
+| 09 | **SMTP Command** | Parse HELO/EHLO, MAIL FROM, RCPT TO | **PASS** | `TEST/BT1/test_09_smtp_command/` |
+| 10 | **SMTP Response** | Parse SMTP status codes (220, 250, 354) | **PASS** | `TEST/BT1/test_10_smtp_response/` |
+| 11 | **Unknown Protocol** | Xử lý an toàn không crash khi gặp protocol lạ | **PASS** | `TEST/BT1/test_11_unknown_protocol/` |
+| 12 | **Malformed Packet** | Xử lý an toàn không crash khi gặp packet hỏng | **PASS** | `TEST/BT1/test_12_malformed_packet/` |
+| 13 | **Non-standard Port** (bổ sung) | Nhận diện HTTP/SMTP/DNS trên port phi tiêu chuẩn | **PASS** | `TEST/BT1/test_13_non_standard_port/` |
+| 14 | **Truncated PCAP** (bổ sung) | Không crash khi file PCAP bị cắt cụt | **PASS** | `TEST/BT1/test_14_truncated_pcap/` |
 
 ---
 
@@ -584,20 +586,20 @@ python3 tests/run_case.py all              # chạy và sinh report cho cả 14 
 
 | Case | Tên Test Case | Mục tiêu kiểm thử | Kết quả chính | Trạng thái | Thư mục |
 |:---:|:---|:---|:---|:---:|:---|
-| T01 | **HTTP URL Decode** | Percent-encoding trên URI | `uri_decoded = "/search?q=' OR 1=1&lang=en"`, URI gốc giữ nguyên, 1 flow | **PASS** | `TEST/bt2_t01_http_url_decode/` |
-| T02 | **HTML Entity** | Giải mã entity trong body `text/html` | `body_decoded = "<p>Hello <script>alert(1)</script> & welcome</p>"`, charset `utf-8` | **PASS** | `TEST/bt2_t02_html_entity/` |
-| T03 | **SMTP MIME** | base64, quoted-printable, RFC 2047 | `"Hello World! This is a base64 message."`, `"Hệ thống IDS đang hoạt động."`, `Subject = "Tái khoan"`, 1 flow SMTP | **PASS** | `TEST/bt2_t03_smtp_mime/` |
-| T04 | **Invalid Bytes** | Byte không hợp lệ UTF-8 | `decode_status = "partial"`, warning `invalid_utf8_sequence`, payload lạ `UNKNOWN` | **PASS** | `TEST/bt2_t04_invalid_bytes/` |
-| T05 | **Normalization** | Header, Host, URI path, domain | `Content-Type`, `Host = "ids.security.lab:8080"`, `uri_normalized = "/admin/secret?q=/"`, `portal.uit.edu.vn`, 2 flow | **PASS** | `TEST/bt2_t05_normalization/` |
-| T06 | **Missing Field** | Thiếu tầng mạng / protocol lạ | ARP ⇒ `invalid/missing_network_layer`, `flow = null`; UDP lạ ⇒ `partial/unsupported_protocol`, 1 flow | **PASS** | `TEST/bt2_t06_missing_field/` |
-| T07 | **TCP Handshake** | Flow qua 3 bước bắt tay | 1 flow `HANDSHAKE → ESTABLISHED`, `syn_count = 2`, `ack_count = 2`, fwd/bwd `2/1` | **PASS** | `TEST/bt2_t07_tcp_handshake/` |
-| T08 | **Bidirectional** | Request/response hai chiều | 1 flow, `direction` `forward`/`backward`, mỗi chiều 1 packet, app `HTTP` | **PASS** | `TEST/bt2_t08_bidirectional/` |
-| T09 | **TCP Close** | Đóng bằng FIN hai chiều và RST | Flow 1 `CLOSED`/`fin` (`fin_count = 2`), flow 2 `RESET`/`rst` | **PASS** | `TEST/bt2_t09_tcp_close/` |
-| T10 | **UDP DNS Flow** | Flow UDP cho DNS query/response | 1 flow `UDP` `ESTABLISHED`, 2 packet / 159 byte, app `DNS`, `syn_count = 0` | **PASS** | `TEST/bt2_t10_udp_dns/` |
-| T11 | **Concurrent Flows** | Ba flow xen kẽ | 3 flow record riêng biệt, mỗi flow 2 packet | **PASS** | `TEST/bt2_t11_concurrent_flows/` |
-| T12 | **Idle Timeout** | Timeout cấu hình được (`--tcp-timeout 5`) | Flow im lặng 29.99s ⇒ `close_reason = "timeout"`; flow mới ⇒ `end_of_capture` | **PASS** | `TEST/bt2_t12_idle_timeout/` |
-| T13 | **Flow Statistics** | Thống kê chi tiết một flow | 8 packet, 392 byte (192 xuôi + 200 ngược), `duration = 0.7`, `syn/ack/fin = 2/7/2`, `CLOSED`/`fin` | **PASS** | `TEST/bt2_t13_statistics/` |
-| T14 | **Malformed Event** | Event lỗi + PCAP cắt cụt | TCP không payload ⇒ `partial/no_application_layer`; IP `PROTO_0` ⇒ `partial/missing_transport_layer` | **PASS** | `TEST/bt2_t14_malformed_event/` |
+| T01 | **HTTP URL Decode** | Percent-encoding trên URI | `uri_decoded = "/search?q=' OR 1=1&lang=en"`, URI gốc giữ nguyên, 1 flow | **PASS** | `TEST/BT2/bt2_t01_http_url_decode/` |
+| T02 | **HTML Entity** | Giải mã entity trong body `text/html` | `body_decoded = "<p>Hello <script>alert(1)</script> & welcome</p>"`, charset `utf-8` | **PASS** | `TEST/BT2/bt2_t02_html_entity/` |
+| T03 | **SMTP MIME** | base64, quoted-printable, RFC 2047 | `"Hello World! This is a base64 message."`, `"Hệ thống IDS đang hoạt động."`, `Subject = "Tái khoan"`, 1 flow SMTP | **PASS** | `TEST/BT2/bt2_t03_smtp_mime/` |
+| T04 | **Invalid Bytes** | Byte không hợp lệ UTF-8 | `decode_status = "partial"`, warning `invalid_utf8_sequence`, payload lạ `UNKNOWN` | **PASS** | `TEST/BT2/bt2_t04_invalid_bytes/` |
+| T05 | **Normalization** | Header, Host, URI path, domain | `Content-Type`, `Host = "ids.security.lab:8080"`, `uri_normalized = "/admin/secret?q=/"`, `portal.uit.edu.vn`, 2 flow | **PASS** | `TEST/BT2/bt2_t05_normalization/` |
+| T06 | **Missing Field** | Thiếu tầng mạng / protocol lạ | ARP ⇒ `invalid/missing_network_layer`, `flow = null`; UDP lạ ⇒ `partial/unsupported_protocol`, 1 flow | **PASS** | `TEST/BT2/bt2_t06_missing_field/` |
+| T07 | **TCP Handshake** | Flow qua 3 bước bắt tay | 1 flow `HANDSHAKE → ESTABLISHED`, `syn_count = 2`, `ack_count = 2`, fwd/bwd `2/1` | **PASS** | `TEST/BT2/bt2_t07_tcp_handshake/` |
+| T08 | **Bidirectional** | Request/response hai chiều | 1 flow, `direction` `forward`/`backward`, mỗi chiều 1 packet, app `HTTP` | **PASS** | `TEST/BT2/bt2_t08_bidirectional/` |
+| T09 | **TCP Close** | Đóng bằng FIN hai chiều và RST | Flow 1 `CLOSED`/`fin` (`fin_count = 2`), flow 2 `RESET`/`rst` | **PASS** | `TEST/BT2/bt2_t09_tcp_close/` |
+| T10 | **UDP DNS Flow** | Flow UDP cho DNS query/response | 1 flow `UDP` `ESTABLISHED`, 2 packet / 159 byte, app `DNS`, `syn_count = 0` | **PASS** | `TEST/BT2/bt2_t10_udp_dns/` |
+| T11 | **Concurrent Flows** | Ba flow xen kẽ | 3 flow record riêng biệt, mỗi flow 2 packet | **PASS** | `TEST/BT2/bt2_t11_concurrent_flows/` |
+| T12 | **Idle Timeout** | Timeout cấu hình được (`--tcp-timeout 5`) | Flow im lặng 29.99s ⇒ `close_reason = "timeout"`; flow mới ⇒ `end_of_capture` | **PASS** | `TEST/BT2/bt2_t12_idle_timeout/` |
+| T13 | **Flow Statistics** | Thống kê chi tiết một flow | 8 packet, 392 byte (192 xuôi + 200 ngược), `duration = 0.7`, `syn/ack/fin = 2/7/2`, `CLOSED`/`fin` | **PASS** | `TEST/BT2/bt2_t13_statistics/` |
+| T14 | **Malformed Event** | Event lỗi + PCAP cắt cụt | TCP không payload ⇒ `partial/no_application_layer`; IP `PROTO_0` ⇒ `partial/missing_transport_layer` | **PASS** | `TEST/BT2/bt2_t14_malformed_event/` |
 
 ---
 

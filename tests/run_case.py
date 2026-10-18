@@ -1099,13 +1099,16 @@ def _read_jsonl(path: str) -> list:
 def _case_dir(case_name: str) -> str:
     """Directory holding a case's artifacts.
 
-    Assignment 3 cases live under ``TEST/BT3/`` with the ``bt3_`` prefix
-    stripped from the directory name (``bt3_t01_rule_loader`` ->
-    ``TEST/BT3/t01_rule_loader``).
+    Cases are grouped per assignment: ``test_*`` under ``TEST/BT1/``,
+    ``bt2_*`` under ``TEST/BT2/`` and ``bt3_*`` under ``TEST/BT3/`` with the
+    ``bt3_`` prefix stripped from the directory name
+    (``bt3_t01_rule_loader`` -> ``TEST/BT3/t01_rule_loader``).
     """
     if case_name.startswith("bt3_"):
         return os.path.join("TEST", "BT3", case_name[len("bt3_"):])
-    return os.path.join("TEST", case_name)
+    if case_name.startswith("bt2_"):
+        return os.path.join("TEST", "BT2", case_name)
+    return os.path.join("TEST", "BT1", case_name)
 
 
 def _resolve_paths(case_name: str, spec: dict):

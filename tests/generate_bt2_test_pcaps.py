@@ -229,7 +229,7 @@ def generate_cases(base_dir: str = "TEST", only=None):
         if only and case_name not in only:
             continue
 
-        case_dir = os.path.join(base_dir, case_name)
+        case_dir = os.path.join(base_dir, "BT2", case_name)
         os.makedirs(case_dir, exist_ok=True)
         pcap_path = os.path.join(case_dir, "test.pcap")
         wrpcap(pcap_path, packets)

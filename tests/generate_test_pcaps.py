@@ -114,7 +114,7 @@ def generate_all_cases(base_dir: str = "TEST", only=None):
     for case_name, pkts in cases.items():
         if only and case_name not in only:
             continue
-        case_dir = os.path.join(base_dir, case_name)
+        case_dir = os.path.join(base_dir, "BT1", case_name)
         os.makedirs(case_dir, exist_ok=True)
         pcap_path = os.path.join(case_dir, "test.pcap")
         wrpcap(pcap_path, pkts)
