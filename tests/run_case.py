@@ -52,6 +52,8 @@ EXPECTATIONS = {
             {"transport": {"handshake": "SYN-ACK"}},
             {"transport": {"handshake": "ACK"}},
         ],
+        "description": "TCP 3-way Handshake",
+        "criteria": "Nhận diện đúng SYN, SYN/ACK, ACK",
     },
     "test_02_tcp_data": {
         "min_events": 1,
@@ -59,10 +61,14 @@ EXPECTATIONS = {
             {"transport": {"layer": "TCP", "payload_len": 44}},
             {"application": {"protocol": "UNKNOWN"}},
         ],
+        "description": "TCP Data Packet",
+        "criteria": "Parse TCP packet có payload và kiểm tra độ dài payload",
     },
     "test_03_udp": {
         "min_events": 1,
         "checks": [{"transport": {"layer": "UDP", "payload_len": 47}}],
+        "description": "UDP Datagram",
+        "criteria": "Parse UDP packet, trích xuất port và payload",
     },
     "test_04_http_get": {
         "min_events": 1,
@@ -79,6 +85,8 @@ EXPECTATIONS = {
                 }
             }
         ],
+        "description": "HTTP GET Request",
+        "criteria": "Parse method, URI, version, headers",
     },
     "test_05_http_post": {
         "min_events": 1,
@@ -95,6 +103,8 @@ EXPECTATIONS = {
                 }
             }
         ],
+        "description": "HTTP POST Request",
+        "criteria": "Parse method, headers và trích xuất request body",
     },
     "test_06_http_response": {
         "min_events": 1,
@@ -107,6 +117,8 @@ EXPECTATIONS = {
                 }
             }
         ],
+        "description": "HTTP Response",
+        "criteria": "Parse HTTP version, status code, reason phrase, headers, body",
     },
     "test_07_dns_query": {
         "min_events": 1,
@@ -119,6 +131,8 @@ EXPECTATIONS = {
                 }
             }
         ],
+        "description": "DNS Query",
+        "criteria": "Parse domain và query type",
     },
     "test_08_dns_response": {
         "min_events": 1,
@@ -139,6 +153,8 @@ EXPECTATIONS = {
                 }
             }
         ],
+        "description": "DNS Response",
+        "criteria": "Parse ít nhất một answer record gồm name, type, rdata, ttl",
     },
     "test_09_smtp_command": {
         "min_events": 3,
@@ -147,6 +163,8 @@ EXPECTATIONS = {
             {"application": {"protocol": "SMTP", "details": {"command": "MAIL FROM"}}},
             {"application": {"protocol": "SMTP", "details": {"command": "RCPT TO"}}},
         ],
+        "description": "SMTP Commands",
+        "criteria": "Parse HELO/EHLO, MAIL FROM và RCPT TO kèm tham số",
     },
     "test_10_smtp_response": {
         "min_events": 3,
@@ -155,6 +173,8 @@ EXPECTATIONS = {
             {"application": {"protocol": "SMTP", "details": {"status_code": 250}}},
             {"application": {"protocol": "SMTP", "details": {"status_code": 354}}},
         ],
+        "description": "SMTP Responses",
+        "criteria": "Parse SMTP status codes (220, 250, 354)",
     },
     "test_11_unknown_protocol": {
         "min_events": 2,
@@ -162,6 +182,8 @@ EXPECTATIONS = {
             {"application": {"protocol": "UNKNOWN"}},
             {"errors": []},
         ],
+        "description": "Unknown Protocol",
+        "criteria": "Xử lý an toàn không crash khi gặp giao thức không hỗ trợ",
     },
     "test_12_malformed_packet": {
         "min_events": 2,
@@ -169,6 +191,8 @@ EXPECTATIONS = {
             {"transport": {"handshake": "SYN"}},
             {"application": {"protocol": "UNKNOWN"}},
         ],
+        "description": "Malformed Packet",
+        "criteria": "Xử lý an toàn không crash khi gặp packet hỏng/cắt cụt",
     },
     "test_13_non_standard_port": {
         "min_events": 3,
@@ -192,6 +216,8 @@ EXPECTATIONS = {
                 }
             },
         ],
+        "description": "Non-standard Port Detection",
+        "criteria": "Nhận diện HTTP/SMTP/DNS trên port phi tiêu chuẩn bằng payload",
     },
     "test_14_truncated_pcap": {
         "pcap": "truncated.pcap",
@@ -199,6 +225,8 @@ EXPECTATIONS = {
         "checks": [
             {"application": {"protocol": "HTTP", "details": {"method": "GET"}}},
         ],
+        "description": "Truncated PCAP",
+        "criteria": "Không crash khi file PCAP bị cắt cụt, vẫn parse gói đầy đủ đầu tiên",
     },
     # ------------------------------------------------------------------
     # Assignment 2 cases (decoder, preprocessor, flow tracker)

@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t07_tcp_handshake
 
 - **Mục tiêu**: Theo dõi flow TCP qua ba bước bắt tay SYN, SYN-ACK, ACK
-- **Yêu cầu kiểm thử**: Ba packet cùng 5-tuple tạo 1 flow, state HANDSHAKE -> ESTABLISHED, syn_count 2, ack_count 2, close_reason end_of_capture.
-- **File PCAP**: `TEST/bt2_t07_tcp_handshake/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t07_tcp_handshake/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t07_tcp_handshake/flows.jsonl`
+- **Yêu cầu kiểm thử**: Ba packet cùng 5-tuple tạo đúng 1 flow, state chuyển HANDSHAKE -> ESTABLISHED, hướng forward/backward chính xác, đếm đủ 2 SYN (SYN-ACK tính vào cả SYN và ACK) và 2 ACK, flow được flush khi hết capture với close_reason end_of_capture.
+- **File PCAP**: `TEST/BT2/bt2_t07_tcp_handshake/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t07_tcp_handshake/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t07_tcp_handshake/flows.jsonl`
 - **Số flow record**: 1- **Số gói tin đã xử lý**: 3
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,11 +13,11 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t07_tcp_handshake/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t07_tcp_handshake/output.jsonl
-[*] Writing flow records to: TEST/bt2_t07_tcp_handshake/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t07_tcp_handshake/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t07_tcp_handshake/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t07_tcp_handshake/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
@@ -26,9 +26,9 @@
 [0003] 10.0.0.10 -> 10.0.0.1 (TCP):51234 -> :80 [ACK] [len=40]
 [FLOW] TCP-10.0.0.10:51234-10.0.0.1:80 state=ESTABLISHED pkts=3 bytes=120 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 3 packets in 0.00s (1722.7 pkts/s)
-[+] Output saved to: TEST/bt2_t07_tcp_handshake/output.jsonl
-[+] Flow records saved to: TEST/bt2_t07_tcp_handshake/flows.jsonl
+[+] Finished: Processed 3 packets in 0.00s (1816.5 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t07_tcp_handshake/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t07_tcp_handshake/flows.jsonl
 [+] Flows: created=1 closed=1 active_flushed=1
 [+] Flow close reasons: fin=0 rst=0 timeout=0 overflow=0 end_of_capture=1
 [+] Dropped events (preprocessor): 0
@@ -90,6 +90,7 @@
   }
 ]
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

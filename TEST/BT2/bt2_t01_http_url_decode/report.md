@@ -2,9 +2,9 @@
 
 - **Mục tiêu**: Giải mã percent-encoding trên URI của HTTP request
 - **Yêu cầu kiểm thử**: Event HTTP request giữ nguyên URI gốc đã mã hóa, decode.fields.uri_decoded chứa chuỗi %27%20OR%201%3D1 đã giải mã, event hợp lệ (forward) và có 1 flow TCP.
-- **File PCAP**: `TEST/bt2_t01_http_url_decode/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t01_http_url_decode/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t01_http_url_decode/flows.jsonl`
+- **File PCAP**: `TEST/BT2/bt2_t01_http_url_decode/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t01_http_url_decode/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t01_http_url_decode/flows.jsonl`
 - **Số flow record**: 1- **Số gói tin đã xử lý**: 1
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,20 +13,20 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t01_http_url_decode/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t01_http_url_decode/output.jsonl
-[*] Writing flow records to: TEST/bt2_t01_http_url_decode/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t01_http_url_decode/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t01_http_url_decode/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t01_http_url_decode/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
 [0001] 10.0.0.10 -> 10.0.0.20 (TCP):52000 -> :80 [ACK,PSH] | HTTP (request) [len=108]
 [FLOW] TCP-10.0.0.10:52000-10.0.0.20:80 state=ESTABLISHED pkts=1 bytes=108 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 1 packets in 0.00s (499.6 pkts/s)
-[+] Output saved to: TEST/bt2_t01_http_url_decode/output.jsonl
-[+] Flow records saved to: TEST/bt2_t01_http_url_decode/flows.jsonl
+[+] Finished: Processed 1 packets in 0.00s (715.1 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t01_http_url_decode/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t01_http_url_decode/flows.jsonl
 [+] Flows: created=1 closed=1 active_flushed=1
 [+] Flow close reasons: fin=0 rst=0 timeout=0 overflow=0 end_of_capture=1
 [+] Dropped events (preprocessor): 0
@@ -66,6 +66,7 @@
 ```json
 []
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

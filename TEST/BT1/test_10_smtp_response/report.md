@@ -2,8 +2,8 @@
 
 - **Mục tiêu**: SMTP Responses
 - **Yêu cầu kiểm thử**: Parse SMTP status codes (220, 250, 354)
-- **File PCAP**: `TEST/test_10_smtp_response/test.pcap`
-- **File Output JSONL**: `TEST/test_10_smtp_response/output.jsonl`
+- **File PCAP**: `TEST/BT1/test_10_smtp_response/test.pcap`
+- **File Output JSONL**: `TEST/BT1/test_10_smtp_response/output.jsonl`
 - **Số gói tin đã xử lý**: 3
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -12,17 +12,25 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Packet Capture & Parser Engine
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/test_10_smtp_response/test.pcap)
-[*] Writing normalized events to: TEST/test_10_smtp_response/output.jsonl
+[*] Mode: PCAP Import (TEST/BT1/test_10_smtp_response/test.pcap)
+[*] Writing normalized events to: TEST/BT1/test_10_smtp_response/output.jsonl
+[*] Writing flow records to: /tmp/ids_flows_bajj9edo/flows.jsonl
+[*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
+[*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
 [0001] 10.0.0.25 -> 192.168.1.100 (TCP):25 -> :45000 [ACK,PSH] | SMTP (response) [len=73]
 [0002] 10.0.0.25 -> 192.168.1.100 (TCP):25 -> :45000 [ACK,PSH] | SMTP (response) [len=70]
 [0003] 10.0.0.25 -> 192.168.1.100 (TCP):25 -> :45000 [ACK,PSH] | SMTP (response) [len=77]
+[FLOW] TCP-10.0.0.25:25-192.168.1.100:45000 state=ESTABLISHED pkts=3 bytes=220 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 3 packets in 0.00s (1805.3 pkts/s)
-[+] Output saved to: TEST/test_10_smtp_response/output.jsonl
+[+] Finished: Processed 3 packets in 0.00s (1425.5 pkts/s)
+[+] Output saved to: TEST/BT1/test_10_smtp_response/output.jsonl
+[+] Flow records saved to: /tmp/ids_flows_bajj9edo/flows.jsonl
+[+] Flows: created=1 closed=1 active_flushed=1
+[+] Flow close reasons: fin=0 rst=0 timeout=0 overflow=0 end_of_capture=1
+[+] Dropped events (preprocessor): 0
 ============================================================
 ```
 
@@ -57,6 +65,8 @@
   }
 ]
 ```
+
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.
@@ -109,6 +119,25 @@
         "detection_method": "payload_signature"
       }
     },
+    "decode": {
+      "decode_status": "unchanged",
+      "decoders": [],
+      "fields": {},
+      "warnings": []
+    },
+    "preprocess": {
+      "preprocess_status": "valid",
+      "processing_action": "forward",
+      "reason": null,
+      "normalizations": [],
+      "warnings": []
+    },
+    "flow": {
+      "flow_id": "TCP-10.0.0.25:25-192.168.1.100:45000",
+      "direction": "forward",
+      "state": "ESTABLISHED",
+      "is_new_flow": true
+    },
     "errors": []
   },
   {
@@ -154,6 +183,25 @@
         "detection_method": "payload_signature"
       }
     },
+    "decode": {
+      "decode_status": "unchanged",
+      "decoders": [],
+      "fields": {},
+      "warnings": []
+    },
+    "preprocess": {
+      "preprocess_status": "valid",
+      "processing_action": "forward",
+      "reason": null,
+      "normalizations": [],
+      "warnings": []
+    },
+    "flow": {
+      "flow_id": "TCP-10.0.0.25:25-192.168.1.100:45000",
+      "direction": "forward",
+      "state": "ESTABLISHED",
+      "is_new_flow": false
+    },
     "errors": []
   },
   {
@@ -198,6 +246,25 @@
         ],
         "detection_method": "payload_signature"
       }
+    },
+    "decode": {
+      "decode_status": "unchanged",
+      "decoders": [],
+      "fields": {},
+      "warnings": []
+    },
+    "preprocess": {
+      "preprocess_status": "valid",
+      "processing_action": "forward",
+      "reason": null,
+      "normalizations": [],
+      "warnings": []
+    },
+    "flow": {
+      "flow_id": "TCP-10.0.0.25:25-192.168.1.100:45000",
+      "direction": "forward",
+      "state": "ESTABLISHED",
+      "is_new_flow": false
     },
     "errors": []
   }

@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t10_udp_dns
 
 - **Mục tiêu**: Theo dõi flow UDP cho cặp DNS query/response
-- **Yêu cầu kiểm thử**: Query/response DNS cùng 5-tuple tạo 1 flow UDP ESTABLISHED, 2 packet 159 byte chia đều hai chiều, application_protocol DNS, syn_count 0.
-- **File PCAP**: `TEST/bt2_t10_udp_dns/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t10_udp_dns/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t10_udp_dns/flows.jsonl`
+- **Yêu cầu kiểm thử**: Query và response DNS cùng 5-tuple tạo đúng 1 flow UDP ở trạng thái ESTABLISHED ngay từ packet đầu, đếm 2 packet (159 byte) chia đều hai chiều, application_protocol là DNS và không có cờ TCP nào được đếm.
+- **File PCAP**: `TEST/BT2/bt2_t10_udp_dns/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t10_udp_dns/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t10_udp_dns/flows.jsonl`
 - **Số flow record**: 1- **Số gói tin đã xử lý**: 2
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,11 +13,11 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t10_udp_dns/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t10_udp_dns/output.jsonl
-[*] Writing flow records to: TEST/bt2_t10_udp_dns/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t10_udp_dns/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t10_udp_dns/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t10_udp_dns/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
@@ -25,9 +25,9 @@
 [0002] 8.8.8.8 -> 192.168.1.100 (UDP):53 -> :53000 | DNS (response) [len=96]
 [FLOW] UDP-192.168.1.100:53000-8.8.8.8:53 state=ESTABLISHED pkts=2 bytes=159 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 2 packets in 0.00s (926.0 pkts/s)
-[+] Output saved to: TEST/bt2_t10_udp_dns/output.jsonl
-[+] Flow records saved to: TEST/bt2_t10_udp_dns/flows.jsonl
+[+] Finished: Processed 2 packets in 0.00s (958.5 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t10_udp_dns/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t10_udp_dns/flows.jsonl
 [+] Flows: created=1 closed=1 active_flushed=1
 [+] Flow close reasons: fin=0 rst=0 timeout=0 overflow=0 end_of_capture=1
 [+] Dropped events (preprocessor): 0
@@ -74,6 +74,7 @@
   }
 ]
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

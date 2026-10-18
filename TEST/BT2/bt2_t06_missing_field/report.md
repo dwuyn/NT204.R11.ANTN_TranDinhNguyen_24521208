@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t06_missing_field
 
 - **Mục tiêu**: Xử lý event thiếu tầng mạng và thiếu giao thức ứng dụng hỗ trợ
-- **Yêu cầu kiểm thử**: Packet ARP invalid/missing_network_layer không có flow; payload UDP lạ partial/unsupported_protocol và có 1 flow UDP.
-- **File PCAP**: `TEST/bt2_t06_missing_field/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t06_missing_field/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t06_missing_field/flows.jsonl`
+- **Yêu cầu kiểm thử**: Packet ARP không có network/transport layer được đánh invalid với reason missing_network_layer và không gắn flow; payload UDP lạ được đánh partial với reason unsupported_protocol nhưng vẫn được theo dõi 1 flow UDP.
+- **File PCAP**: `TEST/BT2/bt2_t06_missing_field/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t06_missing_field/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t06_missing_field/flows.jsonl`
 - **Số flow record**: 1- **Số gói tin đã xử lý**: 2
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,11 +13,11 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t06_missing_field/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t06_missing_field/output.jsonl
-[*] Writing flow records to: TEST/bt2_t06_missing_field/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t06_missing_field/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t06_missing_field/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t06_missing_field/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
@@ -25,9 +25,9 @@
 [0002] 10.0.0.30 -> 10.0.0.31 (UDP):40000 -> :40001 [len=52]
 [FLOW] UDP-10.0.0.30:40000-10.0.0.31:40001 state=ESTABLISHED pkts=1 bytes=52 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 2 packets in 0.00s (822.1 pkts/s)
-[+] Output saved to: TEST/bt2_t06_missing_field/output.jsonl
-[+] Flow records saved to: TEST/bt2_t06_missing_field/flows.jsonl
+[+] Finished: Processed 2 packets in 0.00s (952.2 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t06_missing_field/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t06_missing_field/flows.jsonl
 [+] Flows: created=1 closed=1 active_flushed=1
 [+] Flow close reasons: fin=0 rst=0 timeout=0 overflow=0 end_of_capture=1
 [+] Dropped events (preprocessor): 0
@@ -64,6 +64,7 @@
 ```json
 []
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

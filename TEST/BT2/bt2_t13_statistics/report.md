@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t13_statistics
 
 - **Mục tiêu**: Thống kê chi tiết một flow TCP đầy đủ vòng đời
-- **Yêu cầu kiểm thử**: Flow 8 packet ghi đúng start_time/last_seen/duration 0.7s, byte_count 392 (192 xuôi + 200 ngược), 2 SYN, 7 ACK, 2 FIN, 0 RST, CLOSED/fin.
-- **File PCAP**: `TEST/bt2_t13_statistics/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t13_statistics/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t13_statistics/flows.jsonl`
+- **Yêu cầu kiểm thử**: Flow 8 packet từ bắt tay đến khi đóng ghi đúng start_time/last_seen/duration (0.7s) và byte_count (392 = 192 xuôi + 200 ngược), đếm đúng 2 SYN, 7 ACK, 2 FIN, 0 RST và đóng với close_reason fin.
+- **File PCAP**: `TEST/BT2/bt2_t13_statistics/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t13_statistics/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t13_statistics/flows.jsonl`
 - **Số flow record**: 1- **Số gói tin đã xử lý**: 8
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,11 +13,11 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t13_statistics/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t13_statistics/output.jsonl
-[*] Writing flow records to: TEST/bt2_t13_statistics/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t13_statistics/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t13_statistics/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t13_statistics/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
@@ -31,9 +31,9 @@
 [FLOW] TCP-10.1.1.1:40000-10.1.1.2:80 state=CLOSED pkts=8 bytes=392 reason=fin
 [0008] 10.1.1.2 -> 10.1.1.1 (TCP):80 -> :40000 [ACK,FIN] [len=40]
 ------------------------------------------------------------
-[+] Finished: Processed 8 packets in 0.01s (1467.1 pkts/s)
-[+] Output saved to: TEST/bt2_t13_statistics/output.jsonl
-[+] Flow records saved to: TEST/bt2_t13_statistics/flows.jsonl
+[+] Finished: Processed 8 packets in 0.00s (2130.7 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t13_statistics/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t13_statistics/flows.jsonl
 [+] Flows: created=1 closed=1 active_flushed=0
 [+] Flow close reasons: fin=1 rst=0 timeout=0 overflow=0 end_of_capture=0
 [+] Dropped events (preprocessor): 0
@@ -81,6 +81,7 @@
   }
 ]
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

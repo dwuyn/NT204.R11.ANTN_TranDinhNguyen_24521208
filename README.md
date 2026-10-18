@@ -311,8 +311,10 @@ python3 tests/generate_bt2_test_pcaps.py
 python3 tests/generate_bt3_test_pcaps.py
 python3 tests/generate_bt3_test_pcaps.py bt3_t05_direction   # chỉ sinh một case
 
-# Chạy toàn bộ test case Bài tập 1 + 2 và sinh report
+# Chạy toàn bộ test case (cả 3 bài tập) và sinh report
 python3 tests/run_case.py all
+python3 tests/run_case.py all test    # chỉ Bài tập 1
+python3 tests/run_case.py all bt2     # chỉ Bài tập 2
 
 # Chạy riêng nhóm test case Bài tập 3 (prefix filter)
 python3 tests/run_case.py all bt3

@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t11_concurrent_flows
 
 - **Mục tiêu**: Theo dõi đồng thời ba flow xen kẽ nhau
-- **Yêu cầu kiểm thử**: Sáu packet thuộc ba 5-tuple xen kẽ tạo đúng 3 flow record, mỗi flow 2 packet.
-- **File PCAP**: `TEST/bt2_t11_concurrent_flows/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t11_concurrent_flows/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t11_concurrent_flows/flows.jsonl`
+- **Yêu cầu kiểm thử**: Sáu packet thuộc ba 5-tuple xen kẽ theo thời gian tạo đúng 3 flow record riêng biệt, mỗi flow nhận đúng 2 packet và flow_id tương ứng từng kết nối.
+- **File PCAP**: `TEST/BT2/bt2_t11_concurrent_flows/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t11_concurrent_flows/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t11_concurrent_flows/flows.jsonl`
 - **Số flow record**: 3- **Số gói tin đã xử lý**: 6
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,11 +13,11 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t11_concurrent_flows/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t11_concurrent_flows/output.jsonl
-[*] Writing flow records to: TEST/bt2_t11_concurrent_flows/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t11_concurrent_flows/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t11_concurrent_flows/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t11_concurrent_flows/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
@@ -31,9 +31,9 @@
 [FLOW] TCP-10.0.0.11:52001-10.0.0.20:80 state=ESTABLISHED pkts=2 bytes=139 reason=end_of_capture
 [FLOW] TCP-10.0.0.10:52002-10.0.0.30:443 state=ESTABLISHED pkts=2 bytes=139 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 6 packets in 0.00s (1530.5 pkts/s)
-[+] Output saved to: TEST/bt2_t11_concurrent_flows/output.jsonl
-[+] Flow records saved to: TEST/bt2_t11_concurrent_flows/flows.jsonl
+[+] Finished: Processed 6 packets in 0.00s (1274.4 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t11_concurrent_flows/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t11_concurrent_flows/flows.jsonl
 [+] Flows: created=3 closed=3 active_flushed=3
 [+] Flow close reasons: fin=0 rst=0 timeout=0 overflow=0 end_of_capture=3
 [+] Dropped events (preprocessor): 0
@@ -70,6 +70,7 @@
   }
 ]
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

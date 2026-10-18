@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t04_invalid_bytes
 
 - **Mục tiêu**: Xử lý byte không hợp lệ UTF-8 và payload giao thức không hỗ trợ
-- **Yêu cầu kiểm thử**: Body lỗi UTF-8 được decode thay thế với trạng thái partial, payload lạ là UNKNOWN và preprocessor trả partial/unsupported_protocol.
-- **File PCAP**: `TEST/bt2_t04_invalid_bytes/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t04_invalid_bytes/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t04_invalid_bytes/flows.jsonl`
+- **Yêu cầu kiểm thử**: Body chứa byte lỗi UTF-8 được giải mã thay thế và gắn trạng thái partial với warning invalid_utf8_sequence, payload nhị phân lạ được nhận là UNKNOWN và preprocessor trả về partial/unsupported_protocol.
+- **File PCAP**: `TEST/BT2/bt2_t04_invalid_bytes/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t04_invalid_bytes/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t04_invalid_bytes/flows.jsonl`
 - **Số flow record**: 2- **Số gói tin đã xử lý**: 2
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,11 +13,11 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t04_invalid_bytes/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t04_invalid_bytes/output.jsonl
-[*] Writing flow records to: TEST/bt2_t04_invalid_bytes/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t04_invalid_bytes/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t04_invalid_bytes/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t04_invalid_bytes/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
@@ -26,9 +26,9 @@
 [FLOW] TCP-10.0.0.10:52000-10.0.0.20:80 state=ESTABLISHED pkts=1 bytes=141 reason=end_of_capture
 [FLOW] TCP-10.0.0.11:61000-10.0.0.21:9999 state=ESTABLISHED pkts=1 bytes=66 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 2 packets in 0.00s (603.4 pkts/s)
-[+] Output saved to: TEST/bt2_t04_invalid_bytes/output.jsonl
-[+] Flow records saved to: TEST/bt2_t04_invalid_bytes/flows.jsonl
+[+] Finished: Processed 2 packets in 0.00s (1029.0 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t04_invalid_bytes/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t04_invalid_bytes/flows.jsonl
 [+] Flows: created=2 closed=2 active_flushed=2
 [+] Flow close reasons: fin=0 rst=0 timeout=0 overflow=0 end_of_capture=2
 [+] Dropped events (preprocessor): 0
@@ -69,6 +69,7 @@
 ```json
 []
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

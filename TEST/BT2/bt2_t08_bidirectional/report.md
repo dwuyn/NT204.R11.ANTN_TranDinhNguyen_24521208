@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t08_bidirectional
 
 - **Mục tiêu**: Gộp request/response hai chiều vào cùng một flow
-- **Yêu cầu kiểm thử**: Request và response ngược chiều thuộc một flow duy nhất, direction forward/backward, mỗi chiều 1 packet, application_protocol HTTP.
-- **File PCAP**: `TEST/bt2_t08_bidirectional/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t08_bidirectional/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t08_bidirectional/flows.jsonl`
+- **Yêu cầu kiểm thử**: Request và response ngược chiều cùng 5-tuple thuộc một flow duy nhất với flow_id ổn định, direction lần lượt là forward/backward, mỗi chiều 1 packet và application_protocol được nhận là HTTP.
+- **File PCAP**: `TEST/BT2/bt2_t08_bidirectional/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t08_bidirectional/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t08_bidirectional/flows.jsonl`
 - **Số flow record**: 1- **Số gói tin đã xử lý**: 2
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,11 +13,11 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t08_bidirectional/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t08_bidirectional/output.jsonl
-[*] Writing flow records to: TEST/bt2_t08_bidirectional/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t08_bidirectional/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t08_bidirectional/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t08_bidirectional/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
@@ -25,9 +25,9 @@
 [0002] 10.0.0.20 -> 10.0.0.10 (TCP):80 -> :52000 [ACK,PSH] | HTTP (response) [len=80]
 [FLOW] TCP-10.0.0.10:52000-10.0.0.20:80 state=ESTABLISHED pkts=2 bytes=159 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 2 packets in 0.00s (799.6 pkts/s)
-[+] Output saved to: TEST/bt2_t08_bidirectional/output.jsonl
-[+] Flow records saved to: TEST/bt2_t08_bidirectional/flows.jsonl
+[+] Finished: Processed 2 packets in 0.00s (1090.7 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t08_bidirectional/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t08_bidirectional/flows.jsonl
 [+] Flows: created=1 closed=1 active_flushed=1
 [+] Flow close reasons: fin=0 rst=0 timeout=0 overflow=0 end_of_capture=1
 [+] Dropped events (preprocessor): 0
@@ -69,6 +69,7 @@
   }
 ]
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

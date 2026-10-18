@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t02_html_entity
 
 - **Mục tiêu**: Giải mã HTML entity trong body của HTTP response text/html
-- **Yêu cầu kiểm thử**: Body gốc vẫn giữ nguyên entity, decode.fields.body_decoded đã unescape, charset utf-8 và body_decode_status ok.
-- **File PCAP**: `TEST/bt2_t02_html_entity/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t02_html_entity/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t02_html_entity/flows.jsonl`
+- **Yêu cầu kiểm thử**: Body gốc vẫn giữ nguyên entity, decode.fields.body_decoded đã unescape &lt;script&gt; thành <script>, charset là utf-8 và body_decode_status là ok.
+- **File PCAP**: `TEST/BT2/bt2_t02_html_entity/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t02_html_entity/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t02_html_entity/flows.jsonl`
 - **Số flow record**: 1- **Số gói tin đã xử lý**: 1
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,20 +13,20 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t02_html_entity/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t02_html_entity/output.jsonl
-[*] Writing flow records to: TEST/bt2_t02_html_entity/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t02_html_entity/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t02_html_entity/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t02_html_entity/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
 [0001] 10.0.0.20 -> 10.0.0.10 (TCP):80 -> :52000 [ACK,PSH] | HTTP (response) [len=183]
 [FLOW] TCP-10.0.0.20:80-10.0.0.10:52000 state=ESTABLISHED pkts=1 bytes=183 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 1 packets in 0.00s (702.3 pkts/s)
-[+] Output saved to: TEST/bt2_t02_html_entity/output.jsonl
-[+] Flow records saved to: TEST/bt2_t02_html_entity/flows.jsonl
+[+] Finished: Processed 1 packets in 0.00s (800.9 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t02_html_entity/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t02_html_entity/flows.jsonl
 [+] Flows: created=1 closed=1 active_flushed=1
 [+] Flow close reasons: fin=0 rst=0 timeout=0 overflow=0 end_of_capture=1
 [+] Dropped events (preprocessor): 0
@@ -64,6 +64,7 @@
 ```json
 []
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

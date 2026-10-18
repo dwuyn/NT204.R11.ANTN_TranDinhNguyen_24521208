@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t12_idle_timeout
 
 - **Mục tiêu**: Đóng flow TCP khi vượt idle timeout cấu hình được
-- **Yêu cầu kiểm thử**: Với --tcp-timeout 5, flow im lặng 29.99s bị đóng reason timeout (state ESTABLISHED, 2 packet); flow thứ hai flush end_of_capture.
-- **File PCAP**: `TEST/bt2_t12_idle_timeout/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t12_idle_timeout/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t12_idle_timeout/flows.jsonl`
+- **Yêu cầu kiểm thử**: Với --tcp-timeout 5, flow thứ nhất im lặng 29.99s bị đóng với close_reason timeout sau khi packet của flow thứ hai xuất hiện, flow thứ hai vẫn active và được flush khi hết capture với close_reason end_of_capture.
+- **File PCAP**: `TEST/BT2/bt2_t12_idle_timeout/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t12_idle_timeout/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t12_idle_timeout/flows.jsonl`
 - **Số flow record**: 2- **Số gói tin đã xử lý**: 3
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,11 +13,11 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t12_idle_timeout/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t12_idle_timeout/output.jsonl
-[*] Writing flow records to: TEST/bt2_t12_idle_timeout/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t12_idle_timeout/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t12_idle_timeout/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t12_idle_timeout/flows.jsonl
 [*] Flow tracker: tcp_timeout=5.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
@@ -27,9 +27,9 @@
 [0003] 10.0.0.11 -> 10.0.0.20 (TCP):53000 -> :8080 [SYN] [len=40]
 [FLOW] TCP-10.0.0.11:53000-10.0.0.20:8080 state=HANDSHAKE pkts=1 bytes=40 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 3 packets in 0.00s (1448.3 pkts/s)
-[+] Output saved to: TEST/bt2_t12_idle_timeout/output.jsonl
-[+] Flow records saved to: TEST/bt2_t12_idle_timeout/flows.jsonl
+[+] Finished: Processed 3 packets in 0.00s (1866.3 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t12_idle_timeout/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t12_idle_timeout/flows.jsonl
 [+] Flows: created=2 closed=2 active_flushed=1
 [+] Flow close reasons: fin=0 rst=0 timeout=1 overflow=0 end_of_capture=1
 [+] Dropped events (preprocessor): 0
@@ -65,6 +65,7 @@
   }
 ]
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

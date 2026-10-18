@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t09_tcp_close
 
 - **Mục tiêu**: Đóng flow TCP bằng FIN hai chiều và bằng RST
-- **Yêu cầu kiểm thử**: Flow 1 chuyển CLOSED/fin với 2 FIN và 6 packet; flow 2 chuyển RESET/rst với 1 RST.
-- **File PCAP**: `TEST/bt2_t09_tcp_close/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t09_tcp_close/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t09_tcp_close/flows.jsonl`
+- **Yêu cầu kiểm thử**: Flow thứ nhất qua chuỗi SYN, SYN-ACK, ACK, FIN, ACK, FIN chuyển sang CLOSED với close_reason fin và 2 FIN; flow thứ hai SYN rồi RST chuyển sang RESET với close_reason rst; cả hai flow record đều được ghi.
+- **File PCAP**: `TEST/BT2/bt2_t09_tcp_close/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t09_tcp_close/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t09_tcp_close/flows.jsonl`
 - **Số flow record**: 2- **Số gói tin đã xử lý**: 8
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,11 +13,11 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t09_tcp_close/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t09_tcp_close/output.jsonl
-[*] Writing flow records to: TEST/bt2_t09_tcp_close/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t09_tcp_close/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t09_tcp_close/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t09_tcp_close/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
@@ -32,9 +32,9 @@
 [FLOW] TCP-10.0.0.10:51002-10.0.0.30:8080 state=RESET pkts=2 bytes=80 reason=rst
 [0008] 10.0.0.10 -> 10.0.0.30 (TCP):51002 -> :8080 [RST] [len=40]
 ------------------------------------------------------------
-[+] Finished: Processed 8 packets in 0.00s (1938.3 pkts/s)
-[+] Output saved to: TEST/bt2_t09_tcp_close/output.jsonl
-[+] Flow records saved to: TEST/bt2_t09_tcp_close/flows.jsonl
+[+] Finished: Processed 8 packets in 0.00s (2350.7 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t09_tcp_close/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t09_tcp_close/flows.jsonl
 [+] Flows: created=2 closed=2 active_flushed=0
 [+] Flow close reasons: fin=1 rst=1 timeout=0 overflow=0 end_of_capture=0
 [+] Dropped events (preprocessor): 0
@@ -79,6 +79,7 @@
   }
 ]
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.

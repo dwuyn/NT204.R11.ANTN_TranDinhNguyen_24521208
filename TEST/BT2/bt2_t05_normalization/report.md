@@ -1,10 +1,10 @@
 # Test Case Report: bt2_t05_normalization
 
 - **Mục tiêu**: Chuẩn hóa HTTP header, Host, URI path và tên miền DNS
-- **Yêu cầu kiểm thử**: Header content-TYPE thành Content-Type, Host viết thường, URI chuẩn hóa thành /admin/secret?q=/, QNAME thành portal.uit.edu.vn, normalizations ghi nhận đúng.
-- **File PCAP**: `TEST/bt2_t05_normalization/test.pcap`
-- **File Output JSONL**: `TEST/bt2_t05_normalization/output.jsonl`
-- **File Flow Records**: `TEST/bt2_t05_normalization/flows.jsonl`
+- **Yêu cầu kiểm thử**: Header 'content-TYPE' thành 'Content-Type', 'hOSt' thành 'Host' với host viết thường, URI '//admin//./stats/%2e%2e/secret?q=%2f' chuẩn hóa thành '/admin/secret?q=/', QNAME 'PORTAL.UIT.EDU.VN' thành 'portal.uit.edu.vn' và preprocess.normalizations ghi nhận đúng các loại đã thay đổi.
+- **File PCAP**: `TEST/BT2/bt2_t05_normalization/test.pcap`
+- **File Output JSONL**: `TEST/BT2/bt2_t05_normalization/output.jsonl`
+- **File Flow Records**: `TEST/BT2/bt2_t05_normalization/flows.jsonl`
 - **Số flow record**: 2- **Số gói tin đã xử lý**: 2
 - **Trạng thái**: **PASS (Thành công)**
 
@@ -13,11 +13,11 @@
 ## 1. Kết quả Phân tích (Terminal Output)
 ```text
 ============================================================
-  IDS Capture, Decoder, Preprocessor & Flow Tracker
+  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine
 ============================================================
-[*] Mode: PCAP Import (TEST/bt2_t05_normalization/test.pcap)
-[*] Writing normalized events to: TEST/bt2_t05_normalization/output.jsonl
-[*] Writing flow records to: TEST/bt2_t05_normalization/flows.jsonl
+[*] Mode: PCAP Import (TEST/BT2/bt2_t05_normalization/test.pcap)
+[*] Writing normalized events to: TEST/BT2/bt2_t05_normalization/output.jsonl
+[*] Writing flow records to: TEST/BT2/bt2_t05_normalization/flows.jsonl
 [*] Flow tracker: tcp_timeout=120.0s udp_timeout=30.0s max_active_flows=10000
 [*] Decoder: max_decode_size=1048576 bytes decode_html_entities=True
 ------------------------------------------------------------
@@ -26,9 +26,9 @@
 [FLOW] TCP-10.0.0.10:52000-10.0.0.20:80 state=ESTABLISHED pkts=1 bytes=148 reason=end_of_capture
 [FLOW] UDP-10.0.0.10:53000-8.8.8.8:53 state=ESTABLISHED pkts=1 bytes=63 reason=end_of_capture
 ------------------------------------------------------------
-[+] Finished: Processed 2 packets in 0.00s (504.0 pkts/s)
-[+] Output saved to: TEST/bt2_t05_normalization/output.jsonl
-[+] Flow records saved to: TEST/bt2_t05_normalization/flows.jsonl
+[+] Finished: Processed 2 packets in 0.00s (774.5 pkts/s)
+[+] Output saved to: TEST/BT2/bt2_t05_normalization/output.jsonl
+[+] Flow records saved to: TEST/BT2/bt2_t05_normalization/flows.jsonl
 [+] Flows: created=2 closed=2 active_flushed=2
 [+] Flow close reasons: fin=0 rst=0 timeout=0 overflow=0 end_of_capture=2
 [+] Dropped events (preprocessor): 0
@@ -89,6 +89,7 @@
 ```json
 []
 ```
+
 
 ## 3. Đánh giá tính đúng đắn
 - Tất cả kỳ vọng kiểm thử đều khớp với output thực tế.
