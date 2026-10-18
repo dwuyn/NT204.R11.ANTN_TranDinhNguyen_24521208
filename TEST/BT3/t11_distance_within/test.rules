@@ -1,0 +1,2 @@
+alert tcp any any -> any 80 (msg:"commands two bytes apart"; content:"aa"; content:"bb"; distance:2; within:2; sid:1100091; rev:1;)
+alert tcp any any -> any 80 (msg:"commands within one byte window"; content:"aa"; content:"bb"; distance:2; within:1; sid:1100092; rev:1;)
