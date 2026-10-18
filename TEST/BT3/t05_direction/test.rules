@@ -1,0 +1,2 @@
+alert tcp any any -> any any (msg:"secret prefixed request field"; content:"SECRET"; flow:to_server,established; sid:1100041; rev:1;)
+alert tcp any any -> any any (msg:"token in server response"; content:"TOKEN"; flow:to_client,established; sid:1100042; rev:1;)
