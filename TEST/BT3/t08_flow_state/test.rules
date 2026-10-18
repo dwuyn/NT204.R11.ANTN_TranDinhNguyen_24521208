@@ -1,0 +1,2 @@
+alert tcp any any -> any 80 (msg:"established client data"; content:"HELLO"; flow:to_server,established; sid:1100061; rev:1;)
+alert tcp any any -> any 80 (msg:"connection not established yet"; flow:not_established; sid:1100062; rev:1;)
