@@ -4,11 +4,28 @@ import unittest
 from scapy.all import ARP, IP, Raw, TCP, UDP
 
 from capture.capturer import CapturedPacket
-from config import IDSConfig, DecoderConfig, PreprocessorConfig
+from config import IDSConfig, DecoderConfig, PreprocessorConfig, RulesConfig
+from core.indexer import RuleRepository
+from core.parser import RuleParser
 from pipeline.engine import IDSEngine
 
 T0 = 1700000000.0
 FORM_BODY = b"username=admin&password=a%20b"
+
+BT3_RULES = [
+    ('alert tcp any any -> any 80 (msg:"login body"; content:"password="; nocase; sid:900001; rev:1;)', 900001),
+    ('alert tcp any any -> any 80 (msg:"http post"; content:"POST"; sid:900002; rev:1;)', 900002),
+    ('alert tcp any any -> any 443 (msg:"tls"; content:"|16 03|"; sid:900003; rev:1;)', 900003),
+]
+
+
+def _rule_repository(rule_texts) -> RuleRepository:
+    repository = RuleRepository()
+    for index, text in enumerate(rule_texts):
+        outcome = RuleParser.parse(text, "engine.rules", index + 1)
+        assert outcome.ok, outcome.reason
+        repository.add(outcome.rule)
+    return repository
 
 
 def _captured(packet, packet_id: int, timestamp: float) -> CapturedPacket:
@@ -155,6 +172,70 @@ class TestIDSEngine(unittest.TestCase):
         self.assertEqual(flow["flow_id"], "UDP-192.168.1.100:53000-8.8.8.8:53")
         self.assertEqual(flow["state"], "ESTABLISHED")
         self.assertEqual(flow["close_reason"], "end_of_capture")
+
+
+class TestIDSEngineWithRules(unittest.TestCase):
+    def _run_handshake(self, config=None, repository=None, detections=None):
+        config = config or IDSConfig()
+        repository = repository if repository is not None else _rule_repository([text for text, _ in BT3_RULES])
+        collected = detections if detections is not None else []
+        engine = IDSEngine(
+            config,
+            rule_repository=repository,
+            on_detection=collected.append,
+        )
+        events = []
+        for index, packet in enumerate(_handshake_and_close()):
+            events.append(engine.process_packet(_captured(packet, index + 1, T0 + 0.1 * index)))
+        return engine, events, collected
+
+    def test_http_post_triggers_multi_rule_detections(self):
+        engine, events, detections = self._run_handshake()
+
+        self.assertEqual([detection.sid for detection in detections], [900001, 900002])
+        detection = detections[0]
+        self.assertEqual(detection.packet_id, 4)
+        self.assertEqual(detection.msg, "login body")
+        self.assertEqual(detection.protocol, "TCP")
+        self.assertEqual(detection.application_protocol, "HTTP")
+        self.assertEqual(detection.src_ip, "10.0.0.10")
+        self.assertEqual(detection.dst_port, 80)
+        self.assertEqual(detection.direction, "forward")
+        self.assertEqual(detection.flow_id, "TCP-10.0.0.10:52000-10.0.0.20:80")
+        self.assertEqual(
+            detection.matched["contents"][0]["content"], "password="
+        )
+
+        stats = engine.stats()
+        self.assertEqual(stats["rules_loaded"], 3)
+        self.assertEqual(stats["events_evaluated"], 6)
+        self.assertEqual(stats["candidate_rules"], 8)
+        self.assertEqual(stats["matches"], 2)
+
+    def test_stop_on_first_match_config(self):
+        config = IDSConfig(rules=RulesConfig(stop_on_first_match=True))
+        engine, _, detections = self._run_handshake(config=config)
+
+        self.assertEqual([detection.sid for detection in detections], [900001])
+        self.assertEqual(engine.stats()["matches"], 1)
+
+    def test_without_repository_rule_evaluation_is_inactive(self):
+        engine = IDSEngine(IDSConfig())
+        engine.process_packet(_captured(_http_request_packet(), 1, T0))
+
+        self.assertNotIn("rules_loaded", engine.stats())
+
+    def test_dropped_events_are_not_evaluated(self):
+        engine = IDSEngine(
+            IDSConfig(preprocessor=PreprocessorConfig(drop_invalid=True)),
+            rule_repository=_rule_repository([text for text, _ in BT3_RULES]),
+        )
+        engine.process_packet(_captured(ARP(), 1, T0))
+
+        stats = engine.stats()
+        self.assertEqual(stats["packets_dropped"], 1)
+        self.assertEqual(stats["events_evaluated"], 0)
+        self.assertEqual(stats["matches"], 0)
 
 
 if __name__ == "__main__":
