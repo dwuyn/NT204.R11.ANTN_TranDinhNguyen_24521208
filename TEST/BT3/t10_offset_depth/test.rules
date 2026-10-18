@@ -1,0 +1,2 @@
+alert tcp any any -> any 80 (msg:"malware marker after headers"; content:"MALWARE"; offset:28; depth:7; sid:1100081; rev:1;)
+alert tcp any any -> any 80 (msg:"malware marker near start"; content:"MALWARE"; offset:0; depth:10; sid:1100082; rev:1;)
