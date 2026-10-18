@@ -15,9 +15,19 @@ Registered keys per case:
   description  test objective (required to be included in `run_case.py all`).
   criteria     verification criteria (required for `run_case.py all`).
 
+Assignment 3 (rules-only) keys:
+  kind                   "rules" runs tests/rule_case.py instead of main.py and
+                         asserts `checks` against its result.json.
+  rules                  rule filename (default test.rules).
+  probes                 candidate queries passed to the rule indexer.
+  loader                 optional disabled_sids/disabled_files for RuleLoader.
+  min_detections         optional minimum number of detection records.
+  detection_checks       optional list of JSON subsets matched against detections.
+  forbidden_detections   optional list of JSON subsets that must match nothing.
+
 Usage:
   python tests/run_case.py <case_name> "<description>" "<criteria>"
-  python tests/run_case.py all
+  python tests/run_case.py all [case_prefix]
 """
 
 import json
@@ -592,6 +602,462 @@ EXPECTATIONS = {
             "transport layer được đánh partial với reason missing_transport_layer."
         ),
     },
+    # ------------------------------------------------------------------
+    # Assignment 3 cases (core engine: loader, parser, indexer, matcher,
+    # evaluator, detection events)
+    # ------------------------------------------------------------------
+    "bt3_t01_rule_loader": {
+        "kind": "rules",
+        "checks": [
+            {
+                "stats": {
+                    "files_loaded": 1,
+                    "valid": 3,
+                    "invalid": 1,
+                    "unsupported": 1,
+                    "disabled_rules": 0,
+                    "disabled_files": 0,
+                }
+            },
+            {
+                "valid": [
+                    {"sid": 1100001, "rev": 2, "msg": "HTTP GET"},
+                    {"sid": 1100002, "rev": 1, "msg": "TLS hello"},
+                    {"sid": 1100003, "rev": 1, "msg": "DNS query"},
+                ]
+            },
+            {
+                "valid": [
+                    {
+                        "sid": 1100001,
+                        "contents": [{"content": "GET", "nocase": True}, {"content": "/index"}],
+                    }
+                ]
+            },
+            {
+                "invalid": [
+                    {"status": "invalid", "line_no": 6, "reason": "missing required option: msg"}
+                ]
+            },
+            {
+                "unsupported": [
+                    {"status": "unsupported", "line_no": 7, "reason": "unsupported keyword: pcre"}
+                ]
+            },
+            {
+                "warnings": [
+                    "invalid rule at TEST/BT3/t01_rule_loader/test.rules:6: "
+                    "missing required option: msg",
+                    "unsupported rule at TEST/BT3/t01_rule_loader/test.rules:7: "
+                    "unsupported keyword: pcre",
+                ]
+            },
+        ],
+        "description": "Nạp rule từ file: dòng hợp lệ, dòng invalid và dòng unsupported",
+        "criteria": (
+            "Rule loader nạp file test.rules, bỏ qua comment/dòng trống, nhận đúng 3 rule hợp lệ "
+            "với sid/rev/content (nocase) chính xác, ghi nhận 1 rule invalid (thiếu msg) tại "
+            "dòng 6 và 1 rule unsupported (pcre) tại dòng 7 kèm warning tương ứng."
+        ),
+    },
+    "bt3_t02_invalid_rule": {
+        "kind": "rules",
+        "checks": [
+            {"stats": {"files_loaded": 1, "valid": 0, "invalid": 3, "unsupported": 0}},
+            {"invalid": [{"status": "invalid", "line_no": 1, "reason": "missing required option: sid"}]},
+            {"invalid": [{"status": "invalid", "line_no": 2, "reason": "invalid rule syntax"}]},
+            {"invalid": [{"status": "invalid", "line_no": 3, "reason": "invalid port: abc"}]},
+            {
+                "warnings": [
+                    "invalid rule at TEST/BT3/t02_invalid_rule/test.rules:1: missing required option: sid",
+                    "invalid rule at TEST/BT3/t02_invalid_rule/test.rules:2: invalid rule syntax",
+                    "invalid rule at TEST/BT3/t02_invalid_rule/test.rules:3: invalid port: abc",
+                ]
+            },
+        ],
+        "description": "Rule sai cú pháp bị đánh invalid kèm lý do, loader không dừng",
+        "criteria": (
+            "Ba rule thiếu sid, sai toán tử chiều (=>) và cổng không hợp lệ (abc) đều bị đánh "
+            "invalid với reason tương ứng theo từng dòng, không rule nào bị crash và cả ba "
+            "warning đều được ghi lại."
+        ),
+    },
+    "bt3_t03_unsupported_keyword": {
+        "kind": "rules",
+        "checks": [
+            {"stats": {"files_loaded": 1, "valid": 0, "invalid": 0, "unsupported": 4}},
+            {"unsupported": [{"status": "unsupported", "line_no": 1, "reason": "unsupported keyword: pcre"}]},
+            {"unsupported": [{"status": "unsupported", "line_no": 2, "reason": "unsupported action: drop"}]},
+            {"unsupported": [{"status": "unsupported", "line_no": 3, "reason": "unsupported protocol: icmp"}]},
+            {
+                "unsupported": [
+                    {"status": "unsupported", "line_no": 4, "reason": "unsupported negated address: !192.168.1.1"}
+                ]
+            },
+        ],
+        "description": "Cấu trúc ngoài phạm vi bị đánh unsupported kèm lý do, không crash",
+        "criteria": (
+            "Bốn rule dùng pcre, action drop, protocol icmp và địa chỉ phủ định đều được phân "
+            "loại unsupported với reason cụ thể từng dòng; loader vẫn kết thúc bình thường với "
+            "0 rule hợp lệ."
+        ),
+    },
+    "bt3_t04_header_parse": {
+        "kind": "rules",
+        "checks": [
+            {"stats": {"files_loaded": 1, "valid": 3}},
+            {
+                "valid": [
+                    {
+                        "sid": 1100021,
+                        "header": {
+                            "action": "alert",
+                            "protocol": "tcp",
+                            "direction": "->",
+                            "src_ip": {"any": False, "network": "192.168.1.0/24", "text": "192.168.1.0/24"},
+                            "src_port": {"lo": 1024, "hi": 2048, "text": "1024:2048"},
+                            "dst_ip": {"any": False, "network": "10.0.0.5/32", "text": "10.0.0.5"},
+                            "dst_port": {"lo": 80, "hi": 80, "text": "80"},
+                        },
+                    }
+                ]
+            },
+            {
+                "valid": [
+                    {
+                        "sid": 1100022,
+                        "header": {
+                            "protocol": "udp",
+                            "direction": "<>",
+                            "src_ip": {"any": True, "network": None, "text": "any"},
+                            "src_port": {"lo": None, "hi": None, "text": "any"},
+                            "dst_ip": {"any": False, "network": "8.8.8.8/32"},
+                            "dst_port": {"lo": 53, "hi": 53, "text": "53"},
+                        },
+                    }
+                ]
+            },
+            {
+                "valid": [
+                    {
+                        "sid": 1100023,
+                        "header": {
+                            "src_ip": {"any": False, "network": "172.16.0.0/12"},
+                            "src_port": {"lo": None, "hi": 1024, "text": ":1024"},
+                            "dst_ip": {"any": True},
+                            "dst_port": {"lo": 8080, "hi": 8080},
+                        },
+                    }
+                ]
+            },
+        ],
+        "description": "Parse rule header: CIDR, dải cổng, cận mở và toán tử hai chiều",
+        "criteria": (
+            "Header CIDR 192.168.1.0/24 với dải cổng 1024:2048, header UDP hai chiều <> tới "
+            "8.8.8.8:53 và header với cận dưới mở :1024 đều được parse thành IPSpec/PortSpec "
+            "chính xác (any/network/lo/hi/text)."
+        ),
+    },
+    "bt3_t05_direction": {
+        "min_events": 5,
+        "min_flows": 1,
+        "checks": [{"transport": {"layer": "TCP", "payload_len": 45}}],
+        "min_detections": 2,
+        "detection_checks": [
+            {
+                "sid": 1100041,
+                "packet_id": 4,
+                "direction": "forward",
+                "flow_state": "ESTABLISHED",
+                "action": "alert",
+                "src_port": 52000,
+                "dst_port": 80,
+            },
+            {
+                "sid": 1100042,
+                "packet_id": 5,
+                "direction": "backward",
+                "flow_state": "ESTABLISHED",
+                "src_port": 80,
+                "dst_port": 52000,
+            },
+        ],
+        "forbidden_detections": [
+            {"sid": 1100041, "direction": "backward"},
+            {"sid": 1100042, "direction": "forward"},
+        ],
+        "description": "Hướng flow: to_server chỉ khớp chiều đi, to_client chỉ khớp chiều về",
+        "criteria": (
+            "Rule flow:to_server,established chỉ alert packet request (forward, packet 4) chứa "
+            "'SECRET', rule flow:to_client,established chỉ alert packet response (backward, "
+            "packet 5) chứa 'TOKEN'; không có detection nào sai chiều."
+        ),
+    },
+    "bt3_t06_indexer_candidates": {
+        "kind": "rules",
+        "probes": [
+            {"protocol": "TCP", "src_ip": "10.0.0.10", "src_port": 50000, "dst_ip": "10.0.0.20", "dst_port": 80},
+            {"protocol": "TCP", "src_ip": "10.0.0.10", "src_port": 50000, "dst_ip": "10.0.0.20", "dst_port": 443},
+            {"protocol": "UDP", "src_ip": "10.0.0.10", "src_port": 50000, "dst_ip": "8.8.8.8", "dst_port": 53},
+            {"protocol": "TCP", "src_ip": "192.168.1.5", "src_port": 50000, "dst_ip": "10.0.0.20", "dst_port": 80},
+            {"protocol": "TCP", "src_ip": "10.0.0.10", "src_port": 50000, "dst_ip": "172.16.0.1", "dst_port": 9999},
+            {"protocol": "TCP", "src_ip": "10.0.0.10", "src_port": 50000, "dst_ip": "10.0.0.20", "dst_port": 90},
+        ],
+        "checks": [
+            {"stats": {"valid": 4}},
+            {
+                "candidates": [
+                    {
+                        "query": {"protocol": "TCP", "src_ip": "10.0.0.10", "src_port": 50000, "dst_ip": "10.0.0.20", "dst_port": 80},
+                        "sids_str": "1100031,1100034",
+                    },
+                    {
+                        "query": {"protocol": "TCP", "src_ip": "10.0.0.10", "src_port": 50000, "dst_ip": "10.0.0.20", "dst_port": 443},
+                        "sids_str": "1100032",
+                    },
+                    {
+                        "query": {"protocol": "UDP", "src_ip": "10.0.0.10", "src_port": 50000, "dst_ip": "8.8.8.8", "dst_port": 53},
+                        "sids_str": "1100033",
+                    },
+                    {
+                        "query": {"protocol": "TCP", "src_ip": "192.168.1.5", "src_port": 50000, "dst_ip": "10.0.0.20", "dst_port": 80},
+                        "sids_str": "1100031,1100034",
+                    },
+                    {
+                        "query": {"protocol": "TCP", "src_ip": "10.0.0.10", "src_port": 50000, "dst_ip": "172.16.0.1", "dst_port": 9999},
+                        "sids_str": "",
+                    },
+                    {
+                        "query": {"protocol": "TCP", "src_ip": "10.0.0.10", "src_port": 50000, "dst_ip": "10.0.0.20", "dst_port": 90},
+                        "sids_str": "1100034",
+                    },
+                ]
+            },
+        ],
+        "description": "Indexer lọc candidate rule theo protocol, IP và cổng chính xác",
+        "criteria": (
+            "Với 4 rule đã nạp, truy vấn candidate cho các 5-tuple mẫu trả đúng tập sid đã sắp "
+            "xếp: dst 80 khớp rule 'any' và rule dải 80:90, dst 443 chỉ khớp rule subnet TLS, "
+            "UDP/53 khớp rule DNS, dst 90 chỉ khớp rule dải 80:90 và trả rỗng khi không rule "
+            "nào phù hợp."
+        ),
+    },
+    "bt3_t07_header_prefilter": {
+        "min_events": 4,
+        "min_detections": 3,
+        "checks": [{"transport": {"layer": "UDP", "payload_len": 12}}],
+        "detection_checks": [
+            {"sid": 1100052, "packet_id": 1, "dst_ip": "10.0.0.50", "dst_port": 80},
+            {"sid": 1100051, "packet_id": 2, "dst_ip": "10.0.0.100", "dst_port": 4444},
+            {
+                "sid": 1100053,
+                "packet_id": 4,
+                "protocol": "UDP",
+                "dst_ip": "8.8.8.8",
+                "dst_port": 53,
+                "matched": {"contents": [{"content": "version.bind", "nocase": True}]},
+            },
+        ],
+        "forbidden_detections": [
+            {"sid": 1100051, "packet_id": 1},
+            {"sid": 1100052, "packet_id": 2},
+            {"dst_port": 9999},
+        ],
+        "description": "Header rule quyết định: cùng content 'EVIL' nhưng chỉ đúng đích mới alert",
+        "criteria": (
+            "Ba packet TCP đều chứa 'EVIL' nhưng chỉ packet tới 10.0.0.50:80 khớp rule "
+            "1100052 và packet tới 10.0.0.100:4444 khớp rule 1100051; packet tới "
+            "10.0.0.60:9999 không khớp rule nào; packet UDP chứa 'version.bind' khớp rule DNS "
+            "1100053."
+        ),
+    },
+    "bt3_t08_flow_state": {
+        "min_events": 4,
+        "min_detections": 2,
+        "checks": [
+            {"transport": {"handshake": "SYN"}, "flow": {"state": "HANDSHAKE"}},
+            {"transport": {"layer": "TCP"}},
+        ],
+        "detection_checks": [
+            {
+                "sid": 1100062,
+                "packet_id": 1,
+                "direction": "forward",
+                "flow_state": "HANDSHAKE",
+                "msg": "connection not established yet",
+            },
+            {
+                "sid": 1100061,
+                "packet_id": 4,
+                "flow_state": "ESTABLISHED",
+                "matched": {"contents": [{"content": "HELLO", "offset": 0, "length": 5}]},
+            },
+        ],
+        "forbidden_detections": [
+            {"sid": 1100061, "packet_id": 1},
+            {"sid": 1100062, "packet_id": 4},
+        ],
+        "description": "Trạng thái flow: not_established khớp SYN, established chỉ khớp sau bắt tay",
+        "criteria": (
+            "Rule flow:not_established alert đúng packet SYN đầu tiên (flow_state HANDSHAKE) "
+            "và không alert các packet sau; rule flow:to_server,established chứa 'HELLO' chỉ "
+            "alert packet 4 khi flow đã ESTABLISHED qua bắt tay ba bước."
+        ),
+    },
+    "bt3_t09_content_nocase": {
+        "min_events": 2,
+        "min_detections": 3,
+        "checks": [{"application": {"protocol": "HTTP"}}],
+        "detection_checks": [
+            {
+                "sid": 1100071,
+                "packet_id": 1,
+                "matched": {"contents": [{"content": "admin", "nocase": True, "offset": 11, "length": 5}]},
+            },
+            {
+                "sid": 1100072,
+                "packet_id": 2,
+                "matched": {"contents": [{"content": "ADMIN", "nocase": False, "offset": 11}]},
+            },
+        ],
+        "forbidden_detections": [{"sid": 1100072, "packet_id": 1}],
+        "description": "nocase khớp không phân biệt hoa thường, content thường phải khớp đúng byte",
+        "criteria": (
+            "Payload chứa 'AdMiN' chỉ khớp rule nocase 1100071; payload chứa 'ADMIN' khớp cả "
+            "rule nocase 1100071 lẫn rule phân biệt hoa thường 1100072; rule 1100072 không "
+            "được alert trên packet 1 (vị trí match offset 11, length 5)."
+        ),
+    },
+    "bt3_t10_offset_depth": {
+        "min_events": 1,
+        "min_detections": 1,
+        "checks": [{"transport": {"layer": "TCP", "payload_len": 35}}],
+        "detection_checks": [
+            {
+                "sid": 1100081,
+                "matched": {"contents": [{"content": "MALWARE", "offset": 28, "length": 7, "nocase": False}]},
+            }
+        ],
+        "forbidden_detections": [{"sid": 1100082}],
+        "description": "Cửa sổ tuyệt đối offset/depth giới hạn phạm vi tìm content",
+        "criteria": (
+            "Rule offset:28 depth:7 khớp 'MALWARE' đúng vị trí 28 trong payload 35 byte; rule "
+            "offset:0 depth:10 không khớp vì cửa sổ [0,10) không chứa 'MALWARE'."
+        ),
+    },
+    "bt3_t11_distance_within": {
+        "min_events": 1,
+        "min_detections": 1,
+        "checks": [{"transport": {"layer": "TCP", "payload_len": 10}}],
+        "detection_checks": [
+            {
+                "sid": 1100091,
+                "matched": {"contents": [{"content": "aa", "offset": 2}, {"content": "bb", "offset": 6}]},
+            }
+        ],
+        "forbidden_detections": [{"sid": 1100092}],
+        "description": "Cửa sổ tương đối distance/within tính từ match trước đó",
+        "criteria": (
+            "Payload 'XXaaYYbbZZ': rule content 'aa' rồi 'bb' với distance:2 within:2 khớp "
+            "(aa tại offset 2, bb tại offset 6); rule with within:1 chỉ mở cửa sổ 1 byte sau "
+            "distance nên không khớp."
+        ),
+    },
+    "bt3_t12_flags_dsize": {
+        "min_events": 2,
+        "min_detections": 2,
+        "checks": [
+            {"transport": {"layer": "TCP", "flags": ["PSH", "ACK"], "payload_len": 20}},
+            {"transport": {"layer": "TCP", "flags": ["FIN"], "payload_len": 0}},
+        ],
+        "detection_checks": [
+            {"sid": 1100101, "packet_id": 1, "matched": {"fields": ["flags:PA", "dsize:>10"]}},
+            {"sid": 1100103, "packet_id": 2, "matched": {"fields": ["flags:F", "dsize:0"]}},
+        ],
+        "forbidden_detections": [{"sid": 1100102}],
+        "description": "flags (tập chữ cái) và dsize (so sánh kích thước payload)",
+        "criteria": (
+            "Packet PSH-ACK payload 20 byte khớp rule flags:PA dsize:>10 nhưng không khớp rule "
+            "dsize:<10; packet FIN không payload khớp rule flags:F dsize:0."
+        ),
+    },
+    "bt3_t13_multi_rule_match": {
+        "min_events": 4,
+        "min_detections": 3,
+        "checks": [{"application": {"protocol": "HTTP", "type": "request"}}],
+        "detection_checks": [
+            {"sid": 1100111, "packet_id": 4, "msg": "http post seen"},
+            {
+                "sid": 1100112,
+                "packet_id": 4,
+                "matched": {"fields": ["flow:to_server,established", "flags:PA", "dsize:>0"]},
+            },
+            {"sid": 1100113, "packet_id": 4, "matched": {"contents": [{"content": "/login"}]}},
+        ],
+        "forbidden_detections": [
+            {"sid": 1100111, "packet_id": 1},
+            {"sid": 1100112, "packet_id": 1},
+            {"sid": 1100113, "packet_id": 1},
+        ],
+        "description": "Mặc định không dừng ở match đầu: một packet khớp cả ba rule",
+        "criteria": (
+            "Packet POST /login khớp đồng thời ba rule (content 'POST', POST+flow+flags+dsize "
+            "và '/login') và cả ba detection đều được sinh cho packet 4; các packet bắt tay "
+            "không sinh detection nào."
+        ),
+    },
+    "bt3_t14_detection_event": {
+        "min_events": 4,
+        "min_flows": 1,
+        "min_detections": 1,
+        "checks": [{"application": {"protocol": "HTTP", "type": "request"}}],
+        "flow_checks": [
+            {
+                "flow_id": "TCP-10.0.0.10:52000-10.0.0.20:80",
+                "application_protocol": "HTTP",
+                "state": "ESTABLISHED",
+                "packet_count": 4,
+            }
+        ],
+        "detection_checks": [
+            {
+                "packet_id": 4,
+                "timestamp": 1700000000.3,
+                "timestamp_iso": "2023-11-14T22:13:20.300000+00:00",
+                "action": "alert",
+                "sid": 1100121,
+                "rev": 2,
+                "msg": "Directory traversal detected",
+                "classtype": "attempted-admin",
+                "priority": 1,
+                "protocol": "TCP",
+                "application_protocol": "HTTP",
+                "src_ip": "10.0.0.10",
+                "src_port": 52000,
+                "dst_ip": "10.0.0.20",
+                "dst_port": 80,
+                "direction": "forward",
+                "flow_id": "TCP-10.0.0.10:52000-10.0.0.20:80",
+                "flow_state": "ESTABLISHED",
+                "matched": {
+                    "contents": [{"content": "/etc/passwd", "offset": 7, "length": 11, "nocase": True}],
+                    "fields": ["flow:to_server,established", "flags:PA", "dsize:>0"],
+                },
+                "rule_file": "TEST/BT3/t14_detection_event/test.rules",
+            }
+        ],
+        "forbidden_detections": [
+            {"sid": 1100121, "direction": "backward"},
+            {"sid": 1100121, "packet_id": 1},
+        ],
+        "description": "Detection Event đầy đủ trường theo mục 5 của đề bài",
+        "criteria": (
+            "Detection cho packet 4 chứa đủ thông tin: timestamp (1700000000.3), sid/rev/msg, "
+            "classtype attempted-admin, priority 1, 5-tuple, protocol TCP/HTTP, direction "
+            "forward, flow_id/flow_state, thông tin match (content /etc/passwd offset 7 kèm "
+            "các field flow/flags/dsize) và file rule nguồn."
+        ),
+    },
 }
 
 
@@ -630,25 +1096,145 @@ def _read_jsonl(path: str) -> list:
         return [json.loads(line) for line in handle if line.strip()]
 
 
+def _case_dir(case_name: str) -> str:
+    """Directory holding a case's artifacts.
+
+    Assignment 3 cases live under ``TEST/BT3/`` with the ``bt3_`` prefix
+    stripped from the directory name (``bt3_t01_rule_loader`` ->
+    ``TEST/BT3/t01_rule_loader``).
+    """
+    if case_name.startswith("bt3_"):
+        return os.path.join("TEST", "BT3", case_name[len("bt3_"):])
+    return os.path.join("TEST", case_name)
+
+
 def _resolve_paths(case_name: str, spec: dict):
-    """Return (case_dir, pcap, output, flows, temp_dir) for a case.
+    """Return (case_dir, pcap, output, flows, detections, result, temp_dir).
 
     Assignment 1 cases keep their artifacts untouched: their flow records are
     written to a temporary directory because those cases do not assert flows.
     """
-    case_dir = os.path.join("TEST", case_name)
+    case_dir = _case_dir(case_name)
     pcap_path = os.path.join(case_dir, spec.get("pcap", "test.pcap"))
     output_path = os.path.join(case_dir, "output.jsonl")
-    if case_name.startswith("bt2_"):
-        return case_dir, pcap_path, output_path, os.path.join(case_dir, "flows.jsonl"), None
+    if case_name.startswith(("bt2_", "bt3_")):
+        return (
+            case_dir,
+            pcap_path,
+            output_path,
+            os.path.join(case_dir, "flows.jsonl"),
+            os.path.join(case_dir, "detections.jsonl"),
+            os.path.join(case_dir, "result.json"),
+            None,
+        )
     temp_dir = tempfile.mkdtemp(prefix="ids_flows_")
-    return case_dir, pcap_path, output_path, os.path.join(temp_dir, "flows.jsonl"), temp_dir
+    return (
+        case_dir,
+        pcap_path,
+        output_path,
+        os.path.join(temp_dir, "flows.jsonl"),
+        os.path.join(temp_dir, "detections.jsonl"),
+        os.path.join(temp_dir, "result.json"),
+        temp_dir,
+    )
+
+
+def _run_rules_case(case_name: str, spec: dict, case_dir: str, result_path: str) -> int:
+    """Run a rules-only BT3 case through tests/rule_case.py and write report.md."""
+    rules_path = os.path.join(case_dir, spec.get("rules", "test.rules"))
+    report_path = os.path.join(case_dir, "report.md")
+
+    if not os.path.isfile(rules_path):
+        print(f"[!] Error: {rules_path} not found.")
+        return 1
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "tests.rule_case",
+        rules_path,
+        result_path,
+        json.dumps(spec.get("probes", [])),
+        json.dumps(spec.get("loader", {})),
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        print(f"[!] rule_case.py failed on {case_name}:\n{res.stderr}")
+        return res.returncode
+
+    with open(result_path, "r", encoding="utf-8") as handle:
+        result = json.load(handle)
+
+    checks = spec["checks"]
+    failures = [
+        f"Không kết quả nào khớp kỳ vọng #{idx}: {json.dumps(check, ensure_ascii=False)}"
+        for idx, check in enumerate(checks, start=1)
+        if not _matches_any([result], check)
+    ]
+
+    status = "PASS (Thành công)" if not failures else "FAIL (Thất bại)"
+    result_lines = (
+        "\n".join(f"- {line}" for line in failures)
+        if failures
+        else "- Tất cả kỳ vọng kiểm thử đều khớp với kết quả thực tế."
+    )
+    stats = result.get("stats", {})
+
+    report_content = f"""# Test Case Report: {case_name}
+
+- **Mục tiêu**: {spec["description"]}
+- **Yêu cầu kiểm thử**: {spec["criteria"]}
+- **File Rules**: `{rules_path}`
+- **File Kết quả**: `{result_path}`
+- **Thống kê nạp rule**: files={stats.get("files_loaded", 0)} valid={stats.get("valid", 0)} invalid={stats.get("invalid", 0)} unsupported={stats.get("unsupported", 0)}
+- **Trạng thái**: **{status}**
+
+---
+
+## 1. Kết quả Phân tích (Terminal Output)
+```text
+{res.stdout.strip()}
+```
+
+## 2. Kỳ vọng kiểm thử (Assertions)
+- Danh sách JSON subset bắt buộc phải khớp:
+```json
+{json.dumps(checks, indent=2, ensure_ascii=False)}
+```
+
+## 3. Đánh giá tính đúng đắn
+{result_lines}
+- Chương trình kết thúc bình thường (exit code 0), không crash.
+- Kết quả nạp rule tuân thủ đúng mô hình valid / invalid / unsupported của đề bài.
+
+## 4. Kết quả nạp rule (result.json)
+```json
+{json.dumps(result, ensure_ascii=False, indent=2)}
+```
+"""
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(report_content)
+
+    print(f"[+] Case {case_name}: {status}. Report written to {report_path}")
+    return 0 if not failures else 1
 
 
 def run_case(case_name: str, description: str, verification_criteria: str) -> int:
     spec = EXPECTATIONS.get(case_name)
-    case_dir, pcap_path, output_path, flows_path, temp_dir = _resolve_paths(case_name, spec or {})
+    kind = (spec or {}).get("kind", "engine")
+    (
+        case_dir,
+        pcap_path,
+        output_path,
+        flows_path,
+        detections_path,
+        result_path,
+        temp_dir,
+    ) = _resolve_paths(case_name, spec or {})
     report_path = os.path.join(case_dir, "report.md")
+
+    if kind == "rules":
+        return _run_rules_case(case_name, spec, case_dir, result_path)
 
     if not os.path.isfile(pcap_path):
         print(f"[!] Error: {pcap_path} not found.")
@@ -657,6 +1243,9 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
         return 1
 
     try:
+        # BT3 engine cases always carry a rules file (default name test.rules).
+        rules_file = spec.get("rules", "test.rules") if case_name.startswith("bt3_") and spec else None
+
         # Run main.py on the pcap
         cmd = [
             sys.executable,
@@ -667,7 +1256,15 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
             output_path,
             "--flows-output",
             flows_path,
-        ] + list(spec.get("args", []) if spec else [])
+        ]
+        if rules_file:
+            cmd += [
+                "--rules",
+                os.path.join(case_dir, rules_file),
+                "--detections-output",
+                detections_path,
+            ]
+        cmd += list(spec.get("args", []) if spec else [])
         res = subprocess.run(cmd, capture_output=True, text=True)
         if res.returncode != 0:
             print(f"[!] main.py failed on {case_name}:\n{res.stderr}")
@@ -675,6 +1272,7 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
 
         events = _read_jsonl(output_path)
         flows = _read_jsonl(flows_path)
+        detections = _read_jsonl(detections_path) if rules_file else []
 
         # Verify registered assertions
         failures = []
@@ -707,6 +1305,26 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
                         f"{json.dumps(check, ensure_ascii=False)}"
                     )
 
+            min_detections = spec.get("min_detections")
+            if min_detections is not None and len(detections) < min_detections:
+                failures.append(
+                    f"Cần tối thiểu {min_detections} detection, thực tế {len(detections)}."
+                )
+            detection_checks = spec.get("detection_checks", [])
+            for idx, check in enumerate(detection_checks, start=1):
+                if not _matches_any(detections, check):
+                    failures.append(
+                        f"Không detection nào khớp kỳ vọng #{idx}: "
+                        f"{json.dumps(check, ensure_ascii=False)}"
+                    )
+            forbidden_detections = spec.get("forbidden_detections", [])
+            for idx, check in enumerate(forbidden_detections, start=1):
+                if _matches_any(detections, check):
+                    failures.append(
+                        f"Detection vi phạm kỳ vọng cấm #{idx}: "
+                        f"{json.dumps(check, ensure_ascii=False)}"
+                    )
+
         status = "PASS (Thành công)" if not failures else "FAIL (Thất bại)"
         result_lines = (
             "\n".join(f"- {line}" for line in failures)
@@ -717,11 +1335,15 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
         flow_header = ""
         flow_assertions = ""
         flow_section = ""
-        if case_name.startswith("bt2_"):
+        is_bt2 = case_name.startswith("bt2_")
+        is_bt3 = case_name.startswith("bt3_")
+        if is_bt2 or (is_bt3 and flow_checks):
             flow_header = (
                 f"- **File Flow Records**: `{flows_path}`\n"
                 f"- **Số flow record**: {len(flows)}"
             )
+            if is_bt3:
+                flow_header += "\n"
             flow_assertions = f"""- Số flow tối thiểu: **{min_flows if min_flows is not None else 0}**
 - Danh sách flow subset bắt buộc phải khớp:
 ```json
@@ -741,6 +1363,41 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
 ```
 """
 
+        detection_header = ""
+        detection_assertions = ""
+        detection_section = ""
+        if rules_file:
+            detection_header = (
+                f"- **File Detections**: `{detections_path}`\n"
+                f"- **Số detection**: {len(detections)}\n"
+            )
+            detection_assertions = f"""- Số detection tối thiểu: **{min_detections if min_detections is not None else 0}**
+- Danh sách detection subset bắt buộc phải khớp:
+```json
+{json.dumps(detection_checks, indent=2, ensure_ascii=False)}
+```
+- Danh sách detection bị cấm (không được xuất hiện):
+```json
+{json.dumps(forbidden_detections, indent=2, ensure_ascii=False)}
+```"""
+            detection_section = f"""
+## 6. Detection Events (detections.jsonl)
+- **Số detection**: {len(detections)}
+- **Số detection tối thiểu**: {min_detections if min_detections is not None else 0}
+- **Kỳ vọng detection (JSON subset bắt buộc khớp)**:
+```json
+{json.dumps(detection_checks, indent=2, ensure_ascii=False)}
+```
+- **Kỳ vọng detection bị cấm**:
+```json
+{json.dumps(forbidden_detections, indent=2, ensure_ascii=False)}
+```
+- **Chi tiết detection records**:
+```json
+{json.dumps(detections, indent=2, ensure_ascii=False)}
+```
+"""
+
         # Write report.md
         report_content = f"""# Test Case Report: {case_name}
 
@@ -748,7 +1405,7 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
 - **Yêu cầu kiểm thử**: {verification_criteria}
 - **File PCAP**: `{pcap_path}`
 - **File Output JSONL**: `{output_path}`
-{flow_header}- **Số gói tin đã xử lý**: {len(events)}
+{flow_header}{detection_header}- **Số gói tin đã xử lý**: {len(events)}
 - **Trạng thái**: **{status}**
 
 ---
@@ -765,6 +1422,7 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
 {json.dumps(checks, indent=2, ensure_ascii=False)}
 ```
 {flow_assertions}
+{detection_assertions}
 
 ## 3. Đánh giá tính đúng đắn
 {result_lines}
@@ -775,7 +1433,7 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
 ```json
 {json.dumps(events, indent=2, ensure_ascii=False)}
 ```
-{flow_section}"""
+{flow_section}{detection_section}"""
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(report_content)
 
@@ -786,12 +1444,17 @@ def run_case(case_name: str, description: str, verification_criteria: str) -> in
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def run_all() -> int:
-    """Run every case that registers a description and criteria."""
+def run_all(prefix: str = None) -> int:
+    """Run every case that registers a description and criteria.
+
+    ``prefix`` optionally restricts the run to cases whose name starts with it
+    (e.g. ``bt3`` for the core engine assignment).
+    """
     selected = [
         case
         for case, spec in EXPECTATIONS.items()
         if spec.get("description") and spec.get("criteria")
+        and (not prefix or case.startswith(prefix))
     ]
     if not selected:
         print("No cases registered.")
@@ -812,10 +1475,10 @@ def run_all() -> int:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2 and sys.argv[1] == "all":
-        sys.exit(run_all())
+    if len(sys.argv) >= 2 and sys.argv[1] == "all":
+        sys.exit(run_all(prefix=sys.argv[2] if len(sys.argv) > 2 else None))
     if len(sys.argv) < 4:
         print("Usage: python run_case.py <case_name> <description> <criteria>")
-        print("       python run_case.py all")
+        print("       python run_case.py all [case_prefix]")
         sys.exit(1)
     sys.exit(run_case(sys.argv[1], sys.argv[2], sys.argv[3]))
