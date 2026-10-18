@@ -1,4 +1,4 @@
-# BÀI TẬP 1 & BÀI TẬP 2: PACKET CAPTURE & PARSER, DECODER, PREPROCESSOR, FLOW TRACKER CHO HỆ THỐNG IDS
+# BÀI TẬP 1, 2 & 3: PACKET CAPTURE & PARSER, DECODER, PREPROCESSOR, FLOW TRACKER VÀ CORE ENGINE IDS
 
 > **Môn học**: NT204.R11.ANTN - An toàn mạng  
 > **Sinh viên**: Trần Đình Nguyên  
@@ -11,7 +11,7 @@
 
 ## 1. Giới thiệu Tổng quan
 
-Dự án là module nền tảng đầu vào của một hệ thống phát hiện xâm nhập (**Intrusion Detection System - IDS**), được phát triển theo hai bài tập nối tiếp nhau:
+Dự án là module nền tảng đầu vào của một hệ thống phát hiện xâm nhập (**Intrusion Detection System - IDS**), được phát triển theo ba bài tập nối tiếp nhau:
 
 **Bài tập 1 — Packet Capture & Parser**
 - Thu thập lưu lượng mạng từ **card mạng (live capture)** hoặc từ **file PCAP**.
@@ -24,11 +24,18 @@ Dự án là module nền tảng đầu vào của một hệ thống phát hi�
 - **Flow/Connection Tracker**: gom packet thành **flow hai chiều theo 5-tuple**, giữ `flow_id` ổn định, theo dõi **máy trạng thái TCP** (`HANDSHAKE` → `ESTABLISHED` → `CLOSING` → `CLOSED`/`RESET`), timeout riêng cho TCP/UDP, thống kê chi tiết từng flow và ghi ra `flows.jsonl`.
 - Toàn bộ **timeout, giới hạn kích thước decode, số flow tối đa và chính sách bỏ packet** đều **cấu hình được** qua file JSON và tham số CLI.
 
+**Bài tập 3 — Core Engine & Snort Rule Matching**
+- **Rule Loader**: nạp một hoặc nhiều file `.rules`, bỏ qua comment/dòng trống, enable/disable rule theo `sid` hoặc theo file qua cấu hình; lỗi của một rule **không** làm dừng việc nạp.
+- **Rule Parser & Validator**: parse rule Snort (subset) thành **Internal Rule Object**; phân loại rõ ràng `valid` / `invalid` (sai cú pháp) / `unsupported` (ngoài phạm vi) kèm lý do.
+- **Rule Repository/Indexer**: đánh index rule theo protocol + IP/port hai vế để **chỉ gọi matcher trên candidate rules** thay vì quét toàn bộ ruleset.
+- **Matching Engine**: so khớp header (IP/port/chiều), flow state, `flags`, `dsize` và `content` (nocase, offset/depth, distance/within) trên **raw payload byte-exact**.
+- **Rule Evaluation + Detection Event**: mặc định **không dừng ở match đầu tiên** (multi-match), sinh **Detection Event** đầy đủ trường và ghi ra `detections.jsonl`.
+
 ---
 
 ## 2. Kiến trúc Hệ thống & Pipeline Xử lý
 
-Pipeline xử lý một gói tin gồm 8 tầng (5 tầng của Bài tập 1 và 3 tầng mới của Bài tập 2):
+Pipeline xử lý một gói tin gồm 9 tầng (5 tầng của Bài tập 1, 3 tầng mới của Bài tập 2 và tầng Rule Evaluation của Bài tập 3):
 
 ```text
        [ Raw Packet ] (từ Live Interface hoặc PCAP File)
@@ -56,8 +63,14 @@ Pipeline xử lý một gói tin gồm 8 tầng (5 tầng của Bài tập 1 và
  [ Flow/Connection Tracker ] (5-tuple 2 chiều, TCP state machine,
                               UDP timeout, per-flow statistics)
              │
-             ├──► [ JSON Lines Logger ] ──► output.jsonl  (event + decode + preprocess + flow)
-             └──► [ Flow Logger ]       ──► flows.jsonl   (1 dòng / flow khi đóng)
+             ▼
+ [ Rule Evaluation ] (Rule Indexer → Candidate Prefilter → Matcher:
+                      header, flow, flags, dsize, content(nocase/offset/
+                      depth/distance/within), multi-match)
+             │
+             ├──► [ JSON Lines Logger ] ──► output.jsonl      (event + decode + preprocess + flow)
+             ├──► [ Flow Logger ]       ──► flows.jsonl       (1 dòng / flow khi đóng)
+             └──► [ Detection Logger ]  ──► detections.jsonl  (1 dòng / detection event, khi có rules)
 ```
 
 ### Đặc điểm thiết kế:
@@ -66,6 +79,7 @@ Pipeline xử lý một gói tin gồm 8 tầng (5 tầng của Bài tập 1 và
 - **Zero-Crash Fault Tolerance**: Mỗi tầng đều bọc `try/except`; lỗi được ghi vào `decode.warnings` / `preprocess.warnings` / `errors` và chương trình **không bao giờ dừng** vì một gói tin lỗi.
 - **Deterministic Replay**: Đồng hồ của Flow Tracker lấy từ **timestamp của packet** (không dùng wall-clock), do đó chạy lại cùng một file PCAP luôn cho kết quả giống nhau (bao gồm cả các test case timeout).
 - **Config-driven**: Timeout TCP/UDP, `max_decode_size`, `max_active_flows`, `drop_invalid`, `exclude_unknown`… đều có trong file cấu hình JSON và có thể override bằng CLI.
+- **Rule Evaluation không xâm phạm hành vi cũ**: khi không nạp rules (không truyền `--rules` và không cấu hình `rules.rules_files`), tầng Rule Evaluation bị tắt hoàn toàn — output của Bài tập 1/2 giữ nguyên tuyệt đối.
 
 ---
 
@@ -76,11 +90,21 @@ NT204.R11.ANTN_TranDinhNguyen_24521208/
 ├── .gitignore                      # Cấu hình bỏ qua file cache và artifact output mặc định
 ├── README.md                       # Tài liệu hướng dẫn & AI disclosure
 ├── requirements.txt                # Thư viện Python cần thiết (scapy)
-├── config.py                       # Cấu hình decoder/preprocessor/flow/pipeline (JSON + CLI)
+├── config.py                       # Cấu hình decoder/preprocessor/flow/pipeline/rules (JSON + CLI)
 ├── main.py                         # CLI entrypoint của chương trình IDS
+├── local.rules                     # Ruleset mẫu (Snort subset) cho Bài tập 3
 ├── capture/
 │   ├── __init__.py
 │   └── capturer.py                 # Module thu thập packet (PCAP & Live sniff)
+├── core/                           # Core Engine - Bài tập 3
+│   ├── __init__.py
+│   ├── models.py                   # Rule, RuleOption, ContentPattern, LoadResult...
+│   ├── parser.py                   # Parser + validator rule Snort (valid/invalid/unsupported)
+│   ├── loader.py                   # RuleLoader: nạp nhiều file, enable/disable theo sid/file
+│   ├── indexer.py                  # RuleRepository: index protocol + IP/port 2 vế, candidate lookup
+│   ├── matcher.py                  # Matcher: header/flow/flags/dsize/content
+│   ├── detection.py                # DetectionEvent + sinh event từ match
+│   └── evaluator.py                # RuleEvaluator: điều phối indexer + matcher, multi-match
 ├── parsers/
 │   ├── __init__.py
 │   ├── models.py                   # Dataclass NormalizedEvent + DecodeInfo/PreprocessInfo/FlowRef
@@ -112,7 +136,9 @@ NT204.R11.ANTN_TranDinhNguyen_24521208/
 ├── tests/                          # Bộ unit tests tự động
 │   ├── generate_test_pcaps.py      # Sinh PCAP cho 14 test case Bài tập 1
 │   ├── generate_bt2_test_pcaps.py  # Sinh PCAP cho 14 test case Bài tập 2 (timestamp cố định)
-│   ├── run_case.py                 # Runner: event + flow assertions, mode `all`
+│   ├── generate_bt3_test_pcaps.py  # Sinh rules + PCAP cho 14 test case Bài tập 3
+│   ├── rule_case.py                # Runner cho case rules-only (loader/parser/indexer)
+│   ├── run_case.py                 # Runner: event + flow + detection assertions, mode `all`
 │   ├── test_models.py
 │   ├── test_capturer.py
 │   ├── test_network_parser.py
@@ -126,8 +152,15 @@ NT204.R11.ANTN_TranDinhNguyen_24521208/
 │   ├── test_decoder.py             # Unit test decoder (percent/form/HTML/MIME/charset)
 │   ├── test_preprocessor.py        # Unit test validation & normalization
 │   ├── test_flow_tracker.py        # Unit test flow tracker (state, timeout, thống kê)
-│   └── test_engine.py              # Unit test tích hợp toàn pipeline
-└── TEST/                           # Thư mục chứa test cases của cả hai bài tập
+│   ├── test_engine.py              # Unit test tích hợp toàn pipeline
+│   ├── test_rule_models.py         # Unit test dataclass rule (Bài tập 3)
+│   ├── test_rule_parser.py         # Unit test parser + validator rule
+│   ├── test_rule_loader.py         # Unit test loader (enable/disable, file lỗi)
+│   ├── test_rule_indexer.py        # Unit test index + candidate lookup
+│   ├── test_rule_matcher.py        # Unit test matcher (header/flow/flags/dsize/content)
+│   ├── test_detection.py           # Unit test DetectionEvent
+│   └── test_rule_evaluator.py      # Unit test evaluator (multi-match, stop_on_first_match)
+└── TEST/                           # Thư mục chứa test cases của cả ba bài tập
     ├── test_01_tcp_handshake/      # BT1 - Test TCP Handshake (SYN, SYN-ACK, ACK)
     ├── ...                         # BT1 - test_02 ... test_14
     ├── test_14_truncated_pcap/     # BT1 - file PCAP bị cắt cụt
@@ -144,10 +177,25 @@ NT204.R11.ANTN_TranDinhNguyen_24521208/
     ├── bt2_t11_concurrent_flows/   # BT2 - Flow: nhiều flow đồng thời
     ├── bt2_t12_idle_timeout/       # BT2 - Flow: idle timeout cấu hình được
     ├── bt2_t13_statistics/         # BT2 - Flow: thống kê chi tiết
-    └── bt2_t14_malformed_event/    # BT2 - Event lỗi + PCAP cắt cụt
+    ├── bt2_t14_malformed_event/    # BT2 - Event lỗi + PCAP cắt cụt
+    └── BT3/                        # BT3 - Core Engine & Snort Rule Matching
+        ├── t01_rule_loader/        # BT3 - T01: nạp nhiều file rules, bỏ comment, warning
+        ├── t02_invalid_rule/       # BT3 - T02: rule sai cú pháp → invalid + lý do
+        ├── t03_unsupported_keyword/# BT3 - T03: keyword/action/protocol ngoài phạm vi → unsupported
+        ├── t04_header_parse/       # BT3 - T04: parse header (CIDR, port range, <>)
+        ├── t05_direction/          # BT3 - T05: to_server / to_client
+        ├── t06_indexer_candidates/ # BT3 - T06: candidate rules theo index
+        ├── t07_header_prefilter/   # BT3 - T07: cùng content khác header → chỉ 1 rule khớp
+        ├── t08_flow_state/         # BT3 - T08: established / not_established
+        ├── t09_content_nocase/     # BT3 - T09: content nocase
+        ├── t10_offset_depth/       # BT3 - T10: offset / depth
+        ├── t11_distance_within/    # BT3 - T11: distance / within
+        ├── t12_flags_dsize/        # BT3 - T12: flags + dsize
+        ├── t13_multi_rule_match/   # BT3 - T13: nhiều rule cùng khớp 1 packet
+        └── t14_detection_event/    # BT3 - T14: Detection Event đầy đủ trường
 ```
 
-Mỗi thư mục test case chứa: `test.pcap` (hoặc `truncated.pcap`), `output.jsonl`, `flows.jsonl` (với case Bài tập 2) và `report.md` mô tả kết quả kiểm thử.
+Mỗi thư mục test case chứa: `test.pcap` (hoặc `truncated.pcap`), `output.jsonl`, `flows.jsonl` (với case Bài tập 2) và `report.md` mô tả kết quả kiểm thử. Riêng case Bài tập 3 còn có `test.rules` (ruleset của case), `detections.jsonl` (case engine) hoặc `result.json` (case rules-only: loader/parser/indexer).
 
 ---
 
@@ -173,6 +221,8 @@ Mỗi thư mục test case chứa: `test.pcap` (hoặc `truncated.pcap`), `outpu
 | `--udp-timeout` | Idle timeout của flow UDP (giây) | `30` |
 | `--max-active-flows` | Số flow theo dõi đồng thời tối đa | `10000` |
 | `--max-decode-size` | Giới hạn kích thước payload được decode (byte) | `1048576` |
+| `--rules` | File rules Snort (lặp lại nhiều lần để nạp nhiều file; **thay thế** `rules.rules_files` trong config) | — |
+| `--detections-output` | File JSON Lines chứa detection events (chỉ ghi khi có rules được nạp) | `detections.jsonl` |
 | `--drop-invalid` | Loại bỏ (không forward) event bị preprocessor đánh `invalid` | tắt |
 | `--exclude-unknown` | Không xuất event cho packet có protocol ứng dụng không xác định | tắt |
 | `--quiet`, `-q` | Tắt tóm tắt từng packet trên console | tắt |
@@ -203,9 +253,19 @@ Thứ tự ưu tiên: **giá trị mặc định < file `--config` < tham số C
   },
   "pipeline": {
     "include_unknown": true
+  },
+  "rules": {
+    "rules_files": ["local.rules"],
+    "disabled_sids": [],
+    "disabled_files": [],
+    "stop_on_first_match": false
   }
 }
 ```
+
+- `rules.rules_files`: danh sách file rules nạp khi khởi động (đường dẫn tương đối tính từ thư mục chạy). CLI `--rules` **thay thế** danh sách này (không gộp).
+- `rules.disabled_sids` / `rules.disabled_files`: loại rule theo `sid` hoặc theo tên file.
+- `rules.stop_on_first_match`: `false` (mặc định) = một packet có thể khớp **nhiều rule** và sinh nhiều detection; `true` = dừng ở match đầu tiên.
 
 ### 4.4. Ví dụ sử dụng
 
@@ -225,6 +285,15 @@ python3 main.py --pcap traffic.pcap --max-decode-size 1024
 
 # E. Thu thập trực tiếp từ card mạng (cần quyền root)
 sudo python3 main.py --interface eth0 --count 100 --bpf "tcp or udp" --output live.jsonl
+
+# F. Phân tích PCAP kèm phát hiện theo rules Snort (ghi detection events)
+python3 main.py --pcap TEST/BT3/t13_multi_rule_match/test.pcap \
+                --rules TEST/BT3/t13_multi_rule_match/test.rules \
+                --detections-output detections.jsonl
+
+# G. Nạp nhiều ruleset + tắt một số rule theo sid
+python3 main.py --pcap traffic.pcap --rules rules/emerging.rules --rules local.rules \
+                --config config.json   # config có "rules": {"disabled_sids": [1100002]}
 ```
 
 ### 4.5. Chạy kiểm thử
@@ -236,11 +305,22 @@ python3 -m unittest discover -v tests
 # Sinh dữ liệu PCAP cho Bài tập 2 (14 case, timestamp cố định)
 python3 tests/generate_bt2_test_pcaps.py
 
-# Chạy toàn bộ test case Bài tập 2 và sinh report
+# Sinh rules + PCAP cho Bài tập 3 (14 case)
+python3 tests/generate_bt3_test_pcaps.py
+python3 tests/generate_bt3_test_pcaps.py bt3_t05_direction   # chỉ sinh một case
+
+# Chạy toàn bộ test case Bài tập 1 + 2 và sinh report
 python3 tests/run_case.py all
 
-# Chạy một test case riêng (Bài tập 1 hoặc Bài tập 2)
+# Chạy riêng nhóm test case Bài tập 3 (prefix filter)
+python3 tests/run_case.py all bt3
+
+# Chạy một test case riêng (Bài tập 1, 2 hoặc 3)
 python3 tests/run_case.py bt2_t07_tcp_handshake "<mục tiêu>" "<tiêu chí kiểm thử>"
+python3 tests/run_case.py bt3_t11_distance_within "<mục tiêu>" "<tiêu chí kiểm thử>"
+
+# Chạy trực tiếp case rules-only (loader/parser/indexer) — không cần PCAP
+python3 -m tests.rule_case TEST/BT3/t01_rule_loader/test.rules TEST/BT3/t01_rule_loader/result.json
 ```
 
 ---
@@ -402,6 +482,76 @@ Quy ước:
 - **Timeout chỉ được đánh dấu khi quan sát được độ trễ**: tracker lấy timestamp của **packet** làm đồng hồ. Vì vậy flow chỉ được đóng với `close_reason = "timeout"` khi có một packet đến trễ hơn timeout (hoặc khi đã idle quá timeout tại thời điểm `finalize()`); nếu capture kết thúc trước khi timeout trôi qua, flow còn lại được ghi `end_of_capture`. Đây là chủ đích thiết kế để replay PCAP cho kết quả tất định.
 - **Thống kê**: `byte_count` = tổng `raw_len` của các packet thuộc flow, chia theo hai chiều `forward`/`backward`; `duration = round(last_seen - start_time, 6)`; timestamp được làm tròn 6 chữ số thập phân.
 
+### 5.5. Cú pháp Rule hỗ trợ (Snort subset — Bài tập 3)
+
+```text
+alert <tcp|udp> <IP> <PORT> ->|<> <IP> <PORT> (options; ...)
+```
+
+| Thành phần | Hỗ trợ | Ghi chú |
+|:---|:---|:---|
+| Action | `alert` | Mọi action khác (`drop`, `pass`…) ⇒ `unsupported` |
+| Protocol | `tcp`, `udp` | `icmp`/`ip` ⇒ `unsupported` |
+| IP | `any`, IP đơn, CIDR (`10.0.0.0/24`) | Danh sách (`[...]`), phủ định `!`, IPv6 ⇒ `unsupported` |
+| Port | `any`, port đơn, dải (`1024:2048`) | Danh sách (`[...]`), phủ định `!` ⇒ `unsupported` |
+| Chiều | `->` (một chiều), `<>` (hai chiều) | |
+| `msg`, `sid`, `rev` | Bắt buộc `sid` + `msg`; `sid` phải là số nguyên dương | Thiếu ⇒ `invalid` |
+| `content` | Chuỗi trong `"..."` (escape `\"` `\\` `\;`), kèm `nocase`, `offset`, `depth`, `distance`, `within` | |
+| `flow` | `to_server`, `to_client`, `established`, `not_established` (kết hợp bằng dấu phẩy) | Keyword flow khác ⇒ `unsupported` |
+| `flags` | Tập con chữ cái cờ TCP: `S`, `A`, `F`, `R`, `P`, `U` (ví dụ `PA`) | `!`, `*`, `+`, `0` ⇒ `unsupported` |
+| `dsize` | `N`, `>N`, `<N` | Dải `A<>B` ⇒ `unsupported` |
+| `classtype`, `priority` | Tùy chọn, mặc định `priority = 1` | |
+
+- Rule ngoài phạm vi (ví dụ `pcre`) không làm chương trình dừng: rule được đưa vào danh sách `unsupported` **kèm lý do**.
+- Rule sai cú pháp (thiếu option bắt buộc, port không hợp lệ, thiếu dấu `;`…) được đưa vào `unsupported`/`invalid` **kèm số dòng**, các rule còn lại vẫn được nạp bình thường.
+
+### 5.6. Ngữ nghĩa Matching (Bài tập 3)
+
+- **Candidate prefilter (Indexer)**: với mỗi packet, repository chỉ trả về các rule có protocol khớp và IP/port giao nhau theo đúng chiều của packet (rule một chiều chỉ xét vế tương ứng; rule `<>` xét cả hai vế theo cả hai chiều).
+- **Thứ tự kiểm tra** (short-circuit): header → `flow` state → `flags` → `dsize` → `content`.
+- **Content**: so khớp **byte-exact trên raw payload** (không dựa trên dữ liệu đã decode). `nocase` chỉ lowercase ASCII (a–z ↔ A–Z), byte ≥ 0x80 giữ nguyên.
+- **`offset`/`depth`**: cửa sổ tuyệt đối trên payload — tìm trong `[offset, offset + depth)`; mặc định `offset = 0`, `depth` = phần còn lại payload.
+- **`distance`/`within`**: tương đối so với content **liền trước** — cửa sổ tìm là `[prev_end + distance, prev_end + distance + within)` (trong đó `prev_end` là vị trí kết thúc match trước đó). Content **không** có `distance`/`within` được tìm **độc lập trên toàn payload** (đúng ngữ nghĩa Snort).
+- **`flow`**: `to_server` = chiều forward (client → server), `to_client` = chiều backward (theo endpoint khởi tạo flow của tracker); `established` ⇔ flow state ∈ {`ESTABLISHED`, `CLOSING`} (bao trùm cả flow đang đóng bằng FIN); không có thông tin flow ⇒ các điều kiện `flow` **không** match.
+- **Multi-match mặc định**: một packet có thể sinh **nhiều detection event** (mỗi rule khớp 1 event). Đặt `rules.stop_on_first_match = true` nếu chỉ muốn event đầu tiên.
+- **Deviation có chủ đích**: với UDP, tracker đánh dấu state `ESTABLISHED` ngay từ packet đầu (UDP không có handshake) — do đó `flow:established` với UDP hiệu lực ngay packet thứ nhất. Snort gốc không coi UDP là established; xem mục 8 để biết chi tiết.
+
+### 5.7. Detection Event (`detections.jsonl`)
+
+Mỗi dòng là một detection event JSON (chỉ sinh khi ruleset không rỗng):
+
+```json
+{
+  "packet_id": 4,
+  "timestamp": 1700000000.3,
+  "timestamp_iso": "2023-11-14T22:13:20.300000+00:00",
+  "action": "alert",
+  "sid": 1100121,
+  "rev": 2,
+  "msg": "Directory traversal detected",
+  "classtype": "attempted-admin",
+  "priority": 1,
+  "protocol": "TCP",
+  "application_protocol": "HTTP",
+  "src_ip": "10.0.0.10",
+  "src_port": 52000,
+  "dst_ip": "10.0.0.20",
+  "dst_port": 80,
+  "direction": "forward",
+  "flow_id": "TCP-10.0.0.10:52000-10.0.0.20:80",
+  "flow_state": "ESTABLISHED",
+  "matched": {
+    "contents": [{"content": "/etc/passwd", "offset": 7, "length": 11, "nocase": true}],
+    "fields": ["flow:to_server,established", "flags:PA", "dsize:>0"]
+  },
+  "rule_file": "TEST/BT3/t14_detection_event/test.rules"
+}
+```
+
+- `matched.contents`: vị trí (`offset`) và độ dài (`length`) thực tế của từng content khớp trên payload.
+- `matched.fields`: các option phi-content đã thỏa (flow/flags/dsize).
+- Event chỉ phát sinh cho các packet có tầng transport hợp lệ; packet không có flow (ARP, IP lạ…) không tạo detection.
+
 ---
 
 ## 6. Kết quả Bài tập 1 — 14 Test Cases
@@ -451,17 +601,46 @@ python3 tests/run_case.py all              # chạy và sinh report cho cả 14 
 
 ---
 
-## 8. AI Disclosure
+## 8. Kết quả Bài tập 3 — 14 Test Cases (Core Engine)
+
+```bash
+python3 tests/generate_bt3_test_pcaps.py   # sinh rules + PCAP (t01–t04, t06: rules-only)
+python3 tests/run_case.py all bt3          # chạy và sinh report cho cả 14 case
+```
+
+**Deviation có chủ đích so với Snort gốc** (đã nêu ở mục 5.6): với UDP, tracker đánh dấu flow `ESTABLISHED` ngay từ packet đầu tiên (UDP không có handshake để quan sát), nên điều kiện `flow:established` với rule UDP có hiệu lực ngay packet thứ nhất. Snort gốc yêu cầu đã thấy lưu lượng hai chiều trước khi coi flow là established — trong bối cảnh module này chỉ có state của Flow Tracker, quy ước trên là nhất quán và tất định khi replay PCAP.
+
+| Case | Tên Test Case | Mục tiêu kiểm thử | Kết quả chính | Trạng thái | Thư mục |
+|:---:|:---|:---|:---|:---:|:---|
+| T01 | **Rule Loader** | Nạp nhiều file, comment/dòng trống, lỗi từng rule | 3`valid` (1100001–1100003); 1`invalid` (thiếu `sid`) + 1`unsupported` (`pcre`) kèm số dòng; 2 file nạp cùng lúc | **PASS** | `TEST/BT3/t01_rule_loader/` |
+| T02 | **Invalid Rule** | Rule sai cú pháp | 3`invalid`: thiếu `sid`, thiếu `;`/`msg`, port `abc`; 0 rule hợp lệ | **PASS** | `TEST/BT3/t02_invalid_rule/` |
+| T03 | **Unsupported Keyword** | Ngoài phạm vi hỗ trợ | 4`unsupported`: `pcre`, action `drop`, protocol `icmp`, địa chỉ phủ định `!` — kèm lý do, không crash | **PASS** | `TEST/BT3/t03_unsupported_keyword/` |
+| T04 | **Header Parse** | CIDR, port range, chiều `<>` | Parse đúng `10.0.0.0/24`, `1024:2048`, rule hai chiều 1100023 | **PASS** | `TEST/BT3/t04_header_parse/` |
+| T05 | **Direction** | `to_server` / `to_client` | Payload forward ⇒ chỉ rule `to_server` (1100041) nổ; backward ⇒ chỉ `to_client` (1100042) | **PASS** | `TEST/BT3/t05_direction/` |
+| T06 | **Indexer Candidates** | Candidate rules theo index | 6 probe: chỉ rule giao IP/port/protocol đúng chiều là candidate (1100031–1100034) | **PASS** | `TEST/BT3/t06_indexer_candidates/` |
+| T07 | **Header Prefilter** | Cùng content, khác header | 3 packet cùng chứa `EVIL`: chỉ rule có header/port khớp nổ (1100051, 1100052), UDP port 53 ⇒ 1100053 | **PASS** | `TEST/BT3/t07_header_prefilter/` |
+| T08 | **Flow State** | `established` / `not_established` | SYN đầu tiên (`HANDSHAKE`) ⇒ rule `not_established` (1100062); sau handshake ⇒ rule `established` (1100061) nổ trên packet `HELLO` | **PASS** | `TEST/BT3/t08_flow_state/` |
+| T09 | **Content Nocase** | `nocase` | `AdMiN` ⇒ chỉ rule nocase (1100071); `ADMIN` ⇒ cả hai rule (1100071 + 1100072) nổ | **PASS** | `TEST/BT3/t09_content_nocase/` |
+| T10 | **Offset/Depth** | Cửa sổ tìm tuyệt đối | `MALWARE` tại offset 28 khớp rule `offset:28; depth:7` (1100081); cùng content ngoài cửa sổ ⇒ không nổ | **PASS** | `TEST/BT3/t10_offset_depth/` |
+| T11 | **Distance/Within** | Cửa sổ tương đối | Hai chuỗi cách nhau đúng 1 byte khớp `distance:1; within:1` (1100091); khoảng cách khác ⇒ không nổ | **PASS** | `TEST/BT3/t11_distance_within/` |
+| T12 | **Flags/Dsize** | `flags` + `dsize` | Packet `PA` với dsize > 10 ⇒ 1100101; packet `F` dsize 0 ⇒ 1100103; packet dsize < 10 không thỏa ⇒ không nổ | **PASS** | `TEST/BT3/t12_flags_dsize/` |
+| T13 | **Multi-Rule Match** | Nhiều rule cùng khớp 1 packet | Packet 4 khớp cả 3 rule (1100111, 1100112, 1100113) ⇒ 3 detection event cho cùng packet | **PASS** | `TEST/BT3/t13_multi_rule_match/` |
+| T14 | **Detection Event** | Event đầy đủ trường | Event: `sid 1100121`, `classtype attempted-admin`, `flow_state ESTABLISHED`, `matched.contents` offset 7/length 11, `matched.fields` flow+flags+dsize, `rule_file` chính xác | **PASS** | `TEST/BT3/t14_detection_event/` |
+
+---
+
+## 9. AI Disclosure
 
 - **Công cụ AI sử dụng**: Antigravity (Gemini 3.8 flash)
 - **Mục đích sử dụng**:
   - Hỗ trợ xây dựng kế hoạch phân rã tính năng (task breakdown) theo phương pháp luận kỹ thuật phần mềm.
-  - Hỗ trợ thiết kế kiến trúc pipeline 8 tầng (`capture/`, `parsers/`, `decoder/`, `preprocessor/`, `flow/`, `pipeline/`, `storage/`, `config.py`).
-  - Hỗ trợ tạo bộ dữ liệu test case mẫu chuẩn bằng Scapy cho 14 kịch bản Bài tập 1 và 14 kịch bản Bài tập 2 (timestamp cố định để kiểm thử timeout/thống kê tất định).
-  - Hỗ trợ rà soát (review) logic máy trạng thái TCP, quy tắc chuẩn hóa URI/header và các literal `decode_status`/`reason`/`close_reason` cho khớp đặc tả đề bài.
+  - Hỗ trợ thiết kế kiến trúc pipeline 9 tầng (`capture/`, `parsers/`, `decoder/`, `preprocessor/`, `flow/`, `core/`, `pipeline/`, `storage/`, `config.py`).
+  - Hỗ trợ tạo bộ dữ liệu test case mẫu chuẩn bằng Scapy cho 14 kịch bản Bài tập 1, 14 kịch bản Bài tập 2 (timestamp cố định để kiểm thử timeout/thống kê tất định) và 14 kịch bản Bài tập 3 (rules + PCAP, timestamp cố định `1700000000.0`).
+  - Hỗ trợ rà soát (review) logic máy trạng thái TCP, quy tắc chuẩn hóa URI/header và các literal `decode_status`/`reason`/`close_reason` cho khớp đặc tả đề bài; rà soát ngữ nghĩa matching của Snort (offset/depth, distance/within trên raw payload) và các deviation có chủ đích cho Bài tập 3.
 - **Phần mã nguồn có sự hỗ trợ của AI**:
   - Cấu trúc dataclass trong `parsers/models.py`, `flow/models.py` và module cấu hình `config.py`.
   - Biểu thức chính quy (Regex) và logic bóc tách trong `parsers/detector.py`, `parsers/application/http.py`, `parsers/application/dns.py`, `parsers/application/smtp.py`.
   - Logic giải mã trong `decoder/decoder.py` và logic kiểm tra/chuẩn hóa trong `preprocessor/preprocessor.py`.
   - Máy trạng thái TCP, timeout và thống kê trong `flow/tracker.py`.
   - Phần tích hợp `pipeline/engine.py`, các tham số CLI mới trong `main.py` và script sinh dữ liệu `tests/generate_bt2_test_pcaps.py`.
+  - Core Engine Bài tập 3: toàn bộ `core/models.py`, `core/parser.py`, `core/loader.py`, `core/indexer.py`, `core/matcher.py`, `core/detection.py`, `core/evaluator.py`; mục `rules` trong `config.py`; tích hợp rule evaluation + logger detection trong `pipeline/engine.py` và `main.py`; script `tests/generate_bt3_test_pcaps.py`, `tests/rule_case.py` và phần mở rộng Bài tập 3 của `tests/run_case.py`.
