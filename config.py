@@ -9,7 +9,7 @@ Precedence: built-in defaults < ``--config`` JSON file < CLI overrides.
 
 from dataclasses import dataclass, field, replace
 import json
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 DEFAULT_MAX_DECODE_SIZE = 1048576
 DEFAULT_TCP_IDLE_TIMEOUT = 120.0
@@ -51,16 +51,27 @@ class PipelineConfig:
 
 
 @dataclass
+class RulesConfig:
+    """Settings for the core engine (rule files and load-time filters)."""
+    rules_files: List[str] = field(default_factory=list)
+    disabled_sids: List[int] = field(default_factory=list)
+    disabled_files: List[str] = field(default_factory=list)
+    stop_on_first_match: bool = False
+
+
+@dataclass
 class IDSConfig:
     """Full IDS configuration (defaults are safe for a stock run)."""
     decoder: DecoderConfig = field(default_factory=DecoderConfig)
     preprocessor: PreprocessorConfig = field(default_factory=PreprocessorConfig)
     flow: FlowConfig = field(default_factory=FlowConfig)
     pipeline: PipelineConfig = field(default_factory=PipelineConfig)
+    rules: RulesConfig = field(default_factory=RulesConfig)
 
 
 # JSON section -> {key: expected type}. A value of (int, float) accepts either
-# numeric type (but never bool, which is a subclass of int in Python).
+# numeric type (but never bool, which is a subclass of int in Python). A value
+# of ("list", item) requires a list whose items have the given type.
 _SECTION_TYPES: Dict[str, Dict[str, Any]] = {
     "decoder": {
         "max_decode_size": int,
@@ -83,6 +94,12 @@ _SECTION_TYPES: Dict[str, Dict[str, Any]] = {
     "pipeline": {
         "include_unknown": bool,
     },
+    "rules": {
+        "rules_files": ("list", str),
+        "disabled_sids": ("list", int),
+        "disabled_files": ("list", str),
+        "stop_on_first_match": bool,
+    },
 }
 
 _SECTION_CLASSES = {
@@ -90,7 +107,12 @@ _SECTION_CLASSES = {
     "preprocessor": PreprocessorConfig,
     "flow": FlowConfig,
     "pipeline": PipelineConfig,
+    "rules": RulesConfig,
 }
+
+
+def _is_list_type(expected: Any) -> bool:
+    return isinstance(expected, tuple) and expected[0] == "list"
 
 
 def _validate_type(key: str, value: Any, expected: Any) -> None:
@@ -102,6 +124,16 @@ def _validate_type(key: str, value: Any, expected: Any) -> None:
     if expected is int:
         if isinstance(value, bool) or not isinstance(value, int):
             raise ValueError(f"{key} must be an integer, got {type(value).__name__}")
+        return
+    if _is_list_type(expected):
+        item_type = expected[1]
+        if not isinstance(value, list):
+            raise ValueError(f"{key} must be a list, got {type(value).__name__}")
+        for item in value:
+            if item_type is int and (isinstance(item, bool) or not isinstance(item, int)):
+                raise ValueError(f"{key} items must be integers, got {type(item).__name__}")
+            if item_type is str and not isinstance(item, str):
+                raise ValueError(f"{key} items must be strings, got {type(item).__name__}")
         return
     # Numeric pair (int, float).
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -129,7 +161,7 @@ def _build_section(section: str, values: Any, source: str) -> Any:
     for key, value in values.items():
         full_key = f"{section}.{key}"
         _validate_type(full_key, value, expected_types[key])
-        if expected_types[key] is not bool:
+        if expected_types[key] is not bool and not _is_list_type(expected_types[key]):
             _validate_range(full_key, value)
     return _SECTION_CLASSES[section](**values)
 
@@ -179,6 +211,7 @@ def apply_cli_overrides(config: IDSConfig, args: Any) -> IDSConfig:
     preprocessor = replace(config.preprocessor)
     flow = replace(config.flow)
     pipeline = replace(config.pipeline)
+    rules = replace(config.rules)
 
     value = getattr(args, "max_decode_size", None)
     if value is not None:
@@ -206,4 +239,15 @@ def apply_cli_overrides(config: IDSConfig, args: Any) -> IDSConfig:
     if getattr(args, "exclude_unknown", False):
         pipeline.include_unknown = False
 
-    return IDSConfig(decoder=decoder, preprocessor=preprocessor, flow=flow, pipeline=pipeline)
+    value = getattr(args, "rules", None)
+    if value is not None:
+        _validate_type("rules.rules_files", value, ("list", str))
+        rules.rules_files = list(value)
+
+    return IDSConfig(
+        decoder=decoder,
+        preprocessor=preprocessor,
+        flow=flow,
+        pipeline=pipeline,
+        rules=rules,
+    )

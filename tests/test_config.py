@@ -16,6 +16,7 @@ from config import (
     IDSConfig,
     PipelineConfig,
     PreprocessorConfig,
+    RulesConfig,
     apply_cli_overrides,
     load_config,
 )
@@ -42,6 +43,7 @@ def _namespace(**overrides) -> argparse.Namespace:
         "max_decode_size": None,
         "drop_invalid": False,
         "exclude_unknown": False,
+        "rules": None,
     }
     base.update(overrides)
     return argparse.Namespace(**base)
@@ -78,6 +80,44 @@ class TestLoadConfig(unittest.TestCase):
         # Untouched keys keep their defaults.
         self.assertEqual(config.flow.udp_idle_timeout, DEFAULT_UDP_IDLE_TIMEOUT)
         self.assertTrue(config.preprocessor.normalize_headers)
+
+    def test_rules_section_defaults(self):
+        config = load_config()
+        self.assertEqual(config.rules.rules_files, [])
+        self.assertEqual(config.rules.disabled_sids, [])
+        self.assertEqual(config.rules.disabled_files, [])
+        self.assertFalse(config.rules.stop_on_first_match)
+
+    def test_rules_section_from_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = _write_config(tmpdir, {
+                "rules": {
+                    "rules_files": ["rules/local.rules", "rules/extra.rules"],
+                    "disabled_sids": [100001, 100002],
+                    "disabled_files": ["rules/noisy.rules"],
+                    "stop_on_first_match": True,
+                }
+            })
+            config = load_config(path)
+
+        self.assertEqual(config.rules.rules_files, ["rules/local.rules", "rules/extra.rules"])
+        self.assertEqual(config.rules.disabled_sids, [100001, 100002])
+        self.assertEqual(config.rules.disabled_files, ["rules/noisy.rules"])
+        self.assertTrue(config.rules.stop_on_first_match)
+        # Untouched sections keep their defaults.
+        self.assertEqual(config.flow.tcp_idle_timeout, DEFAULT_TCP_IDLE_TIMEOUT)
+
+    def test_rules_wrong_type_raises(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for payload in (
+                {"rules": {"rules_files": "rules/local.rules"}},
+                {"rules": {"disabled_sids": ["100001"]}},
+                {"rules": {"disabled_sids": [True]}},
+                {"rules": {"stop_on_first_match": "yes"}},
+            ):
+                path = _write_config(tmpdir, payload)
+                with self.assertRaises(ValueError):
+                    load_config(path)
 
     def test_unknown_section_raises(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -154,6 +194,31 @@ class TestApplyCliOverrides(unittest.TestCase):
         with self.assertRaises(ValueError):
             apply_cli_overrides(load_config(), _namespace(max_active_flows=0))
 
+    def test_rules_cli_replaces_files(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = _write_config(tmpdir, {"rules": {"rules_files": ["file.rules"]}})
+            config = load_config(path)
+
+        overridden = apply_cli_overrides(config, _namespace(rules=["cli.rules", "extra.rules"]))
+        self.assertEqual(overridden.rules.rules_files, ["cli.rules", "extra.rules"])
+        # Original configuration is not mutated.
+        self.assertEqual(config.rules.rules_files, ["file.rules"])
+
+    def test_rules_cli_unset_keeps_config(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = _write_config(tmpdir, {"rules": {"rules_files": ["file.rules"], "disabled_sids": [7]}})
+            config = load_config(path)
+
+        overridden = apply_cli_overrides(config, _namespace())
+        self.assertEqual(overridden.rules.rules_files, ["file.rules"])
+        self.assertEqual(overridden.rules.disabled_sids, [7])
+
+    def test_rules_cli_invalid_type_raises(self):
+        with self.assertRaises(ValueError):
+            apply_cli_overrides(load_config(), _namespace(rules="not-a-list"))
+        with self.assertRaises(ValueError):
+            apply_cli_overrides(load_config(), _namespace(rules=[1, 2]))
+
     def test_nested_dataclasses_stay_independent(self):
         base = IDSConfig()
         other = IDSConfig()
@@ -165,10 +230,14 @@ class TestApplyCliOverrides(unittest.TestCase):
         second = IDSConfig()
         self.assertIsNot(first.decoder, second.decoder)
         self.assertIsNot(first.flow, second.flow)
+        self.assertIsNot(first.rules, second.rules)
+        first.rules.rules_files.append("x.rules")
+        self.assertEqual(second.rules.rules_files, [])
         self.assertEqual(DecoderConfig().decode_mime, True)
         self.assertEqual(PreprocessorConfig().drop_invalid, False)
         self.assertEqual(FlowConfig().max_active_flows, DEFAULT_MAX_ACTIVE_FLOWS)
         self.assertEqual(PipelineConfig().include_unknown, True)
+        self.assertEqual(RulesConfig().rules_files, [])
 
 
 if __name__ == "__main__":
