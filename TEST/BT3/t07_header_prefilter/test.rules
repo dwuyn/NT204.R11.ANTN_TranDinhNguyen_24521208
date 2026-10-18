@@ -1,0 +1,3 @@
+alert tcp any any -> 10.0.0.100 4444 (msg:"evil on service port"; content:"EVIL"; sid:1100051; rev:1;)
+alert tcp any any -> any 80 (msg:"evil over http"; content:"EVIL"; sid:1100052; rev:1;)
+alert udp any any -> any 53 (msg:"dns version bind attempt"; content:"version.bind"; nocase; sid:1100053; rev:1;)
