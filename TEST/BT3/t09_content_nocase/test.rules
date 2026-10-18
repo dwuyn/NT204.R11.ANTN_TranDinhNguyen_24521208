@@ -1,0 +1,2 @@
+alert tcp any any -> any 80 (msg:"admin token any case"; content:"admin"; nocase; sid:1100071; rev:1;)
+alert tcp any any -> any 80 (msg:"admin token exact case"; content:"ADMIN"; sid:1100072; rev:1;)
