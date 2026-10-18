@@ -1,0 +1,7 @@
+# Comment line, ignored by the loader.
+
+alert tcp any any -> 10.0.0.20 80 (msg:"HTTP GET"; content:"GET"; nocase; content:"/index"; sid:1100001; rev:2;)
+alert tcp any any -> any 443 (msg:"TLS hello"; content:"|16 03|"; sid:1100002; rev:1;)
+alert udp any any -> any 53 (msg:"DNS query"; content:"|01 00|"; offset:2; depth:2; sid:1100003; rev:1;)
+alert tcp any any -> any 22 (content:"SSH"; sid:1100004;)
+alert tcp any any -> any 80 (msg:"pcre test"; pcre:"/foo/"; sid:1100005;)
