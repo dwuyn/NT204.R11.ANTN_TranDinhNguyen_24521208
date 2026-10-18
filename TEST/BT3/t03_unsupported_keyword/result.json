@@ -1,0 +1,58 @@
+{
+  "files": [
+    "TEST/BT3/t03_unsupported_keyword/test.rules"
+  ],
+  "stats": {
+    "files_loaded": 1,
+    "valid": 0,
+    "invalid": 0,
+    "unsupported": 4,
+    "disabled_rules": 0,
+    "disabled_files": 0
+  },
+  "valid": [],
+  "invalid": [],
+  "unsupported": [
+    {
+      "status": "unsupported",
+      "reason": "unsupported keyword: pcre",
+      "rule_file": "TEST/BT3/t03_unsupported_keyword/test.rules",
+      "line_no": 1,
+      "raw": "alert tcp any any -> any 80 (msg:\"pcre\"; pcre:\"/etc/passwd/\"; sid:1100013;)",
+      "sid": null
+    },
+    {
+      "status": "unsupported",
+      "reason": "unsupported action: drop",
+      "rule_file": "TEST/BT3/t03_unsupported_keyword/test.rules",
+      "line_no": 2,
+      "raw": "drop tcp any any -> any 80 (msg:\"drop action\"; sid:1100014;)",
+      "sid": null
+    },
+    {
+      "status": "unsupported",
+      "reason": "unsupported protocol: icmp",
+      "rule_file": "TEST/BT3/t03_unsupported_keyword/test.rules",
+      "line_no": 3,
+      "raw": "alert icmp any any -> any any (msg:\"icmp echo\"; sid:1100015;)",
+      "sid": null
+    },
+    {
+      "status": "unsupported",
+      "reason": "unsupported negated address: !192.168.1.1",
+      "rule_file": "TEST/BT3/t03_unsupported_keyword/test.rules",
+      "line_no": 4,
+      "raw": "alert tcp !192.168.1.1 any -> any 80 (msg:\"negated src\"; sid:1100016;)",
+      "sid": null
+    }
+  ],
+  "disabled_rules": [],
+  "disabled_files": [],
+  "warnings": [
+    "unsupported rule at TEST/BT3/t03_unsupported_keyword/test.rules:1: unsupported keyword: pcre",
+    "unsupported rule at TEST/BT3/t03_unsupported_keyword/test.rules:2: unsupported action: drop",
+    "unsupported rule at TEST/BT3/t03_unsupported_keyword/test.rules:3: unsupported protocol: icmp",
+    "unsupported rule at TEST/BT3/t03_unsupported_keyword/test.rules:4: unsupported negated address: !192.168.1.1"
+  ],
+  "candidates": []
+}
