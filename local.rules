@@ -1,0 +1,9 @@
+# Local IDS rules (NT204.R11.ANTN - Assignment 3: Core Engine)
+# Snort-compatible subset supported by core/parser.py.
+# Usage: python3 main.py --pcap <file> --rules local.rules
+
+alert tcp any any -> any 80 (msg:"HTTP request"; content:"HTTP/1.1"; sid:1000001; rev:1;)
+alert tcp any any -> any 80 (msg:"HTTP POST request"; content:"POST"; nocase; sid:1000002; rev:1;)
+alert tcp any any -> any 80 (msg:"Directory traversal attempt"; content:"../"; nocase; sid:1000003; rev:1;)
+alert tcp any any -> any 443 (msg:"TLS ClientHello"; content:"|16 03|"; sid:1000004; rev:1;)
+alert udp any any -> any 53 (msg:"DNS version.bind query"; content:"version.bind"; nocase; sid:1000005; rev:1;)

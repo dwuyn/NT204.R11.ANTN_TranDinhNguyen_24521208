@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Main CLI entrypoint for the IDS Capture, Decoder, Preprocessor & Flow Tracker.
+"""Main CLI entrypoint for the IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine.
 
 Supports:
   - Live capture from interface:   python main.py --interface eth0
   - Import from PCAP file:          python main.py --pcap traffic.pcap
   - Saving output to JSON Lines:    python main.py --pcap traffic.pcap --output output.jsonl
   - Flow records to JSON Lines:     python main.py --pcap traffic.pcap --flows-output flows.jsonl
+  - Rule-based detection:           python main.py --pcap traffic.pcap --rules local.rules
+  - Detections to JSON Lines:       python main.py --pcap traffic.pcap --rules local.rules --detections-output detections.jsonl
   - Packet count limit:             python main.py --interface eth0 --count 100
   - JSON configuration file:        python main.py --pcap traffic.pcap --config config.json
   - Overriding timeouts/limits:     python main.py --pcap traffic.pcap --tcp-timeout 5 --drop-invalid
@@ -17,6 +19,9 @@ import time
 
 from capture.capturer import PacketCapture
 from config import apply_cli_overrides, load_config
+from core.detection import DetectionEvent
+from core.indexer import RuleRepository
+from core.loader import RuleLoader
 from flow.models import Flow
 from pipeline.engine import IDSEngine
 from storage.logger import JsonLinesLogger
@@ -115,6 +120,19 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="Do not emit events for packets with an unknown application protocol",
     )
+    parser.add_argument(
+        "--rules",
+        action="append",
+        default=None,
+        metavar="PATH",
+        help="Snort rule file to load; repeat for multiple files (overrides the config rules_files list)",
+    )
+    parser.add_argument(
+        "--detections-output",
+        type=str,
+        default="detections.jsonl",
+        help="Path to the detection events JSON Lines file (default: detections.jsonl)",
+    )
 
     return parser.parse_args()
 
@@ -131,8 +149,24 @@ def main() -> int:
     processed_count = 0
     start_time = time.time()
 
+    # Load rule files (when configured/CLI-provided) and index them.
+    repository = None
+    load_stats = None
+    if config.rules.rules_files:
+        loader = RuleLoader(
+            disabled_sids=config.rules.disabled_sids,
+            disabled_files=config.rules.disabled_files,
+        )
+        load_result = loader.load_files(config.rules.rules_files)
+        for warning in load_result.warnings:
+            print(f"[!] Rule warning: {warning}", file=sys.stderr)
+        repository = RuleRepository()
+        for rule in load_result.valid:
+            repository.add(rule)
+        load_stats = load_result.stats()
+
     print("=" * 60)
-    print("  IDS Capture, Decoder, Preprocessor & Flow Tracker")
+    print("  IDS Capture, Decoder, Preprocessor, Flow Tracker & Core Engine")
     print("=" * 60)
     if args.pcap:
         print(f"[*] Mode: PCAP Import ({args.pcap})")
@@ -158,9 +192,21 @@ def main() -> int:
         f"[*] Decoder: max_decode_size={config.decoder.max_decode_size} bytes "
         f"decode_html_entities={config.decoder.decode_html_entities}"
     )
+    if load_stats is not None:
+        print(
+            f"[*] Rules: files={load_stats['files_loaded']} loaded={load_stats['valid']} "
+            f"invalid={load_stats['invalid']} unsupported={load_stats['unsupported']}"
+        )
+        print(f"[*] Writing detections to: {args.detections_output}")
     print("-" * 60)
 
     flows_logger = JsonLinesLogger(filepath=args.flows_output, console_summary=False)
+    detections_logger = (
+        JsonLinesLogger(filepath=args.detections_output, console_summary=False)
+        if repository is not None
+        else None
+    )
+    detection_count = 0
 
     def on_flow_closed(flow: Flow) -> None:
         flows_logger.log(flow)
@@ -170,7 +216,19 @@ def main() -> int:
                 f"bytes={flow.byte_count} reason={flow.close_reason}"
             )
 
-    engine = IDSEngine(config, on_flow_closed=on_flow_closed)
+    def on_detection(detection: DetectionEvent) -> None:
+        nonlocal detection_count
+        detections_logger.log(detection)
+        detection_count += 1
+        if console_summary:
+            print(detection.format_summary())
+
+    engine = IDSEngine(
+        config,
+        on_flow_closed=on_flow_closed,
+        rule_repository=repository,
+        on_detection=on_detection if repository is not None else None,
+    )
 
     try:
         with JsonLinesLogger(filepath=args.output, console_summary=console_summary) as logger:
@@ -196,6 +254,8 @@ def main() -> int:
     finally:
         flows_flushed = engine.finalize()
         flows_logger.close()
+        if detections_logger is not None:
+            detections_logger.close()
 
     elapsed = max(time.time() - start_time, 0.0001)
     rate = processed_count / elapsed
@@ -216,6 +276,12 @@ def main() -> int:
         f"end_of_capture={reasons['end_of_capture']}"
     )
     print(f"[+] Dropped events (preprocessor): {stats['packets_dropped']}")
+    if repository is not None:
+        print(
+            f"[+] Rules: loaded={stats['rules_loaded']} events_evaluated={stats['events_evaluated']} "
+            f"candidate_rules={stats['candidate_rules']} matches={stats['matches']}"
+        )
+        print(f"[+] Detections: {detection_count} written to {args.detections_output}")
     print("=" * 60)
     return 0
 

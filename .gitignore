@@ -10,3 +10,4 @@ __pycache__/
 # Default CLI output artifacts
 /output.jsonl
 /flows.jsonl
+/detections.jsonl
