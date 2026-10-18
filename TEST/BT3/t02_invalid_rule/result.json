@@ -1,0 +1,49 @@
+{
+  "files": [
+    "TEST/BT3/t02_invalid_rule/test.rules"
+  ],
+  "stats": {
+    "files_loaded": 1,
+    "valid": 0,
+    "invalid": 3,
+    "unsupported": 0,
+    "disabled_rules": 0,
+    "disabled_files": 0
+  },
+  "valid": [],
+  "invalid": [
+    {
+      "status": "invalid",
+      "reason": "missing required option: sid",
+      "rule_file": "TEST/BT3/t02_invalid_rule/test.rules",
+      "line_no": 1,
+      "raw": "alert tcp any any -> any 80 (msg:\"missing sid\";)",
+      "sid": null
+    },
+    {
+      "status": "invalid",
+      "reason": "invalid rule syntax",
+      "rule_file": "TEST/BT3/t02_invalid_rule/test.rules",
+      "line_no": 2,
+      "raw": "alert tcp any any => any 80 (msg:\"bad direction\"; sid:1100011;)",
+      "sid": null
+    },
+    {
+      "status": "invalid",
+      "reason": "invalid port: abc",
+      "rule_file": "TEST/BT3/t02_invalid_rule/test.rules",
+      "line_no": 3,
+      "raw": "alert tcp any any -> any abc (msg:\"bad port\"; sid:1100012;)",
+      "sid": null
+    }
+  ],
+  "unsupported": [],
+  "disabled_rules": [],
+  "disabled_files": [],
+  "warnings": [
+    "invalid rule at TEST/BT3/t02_invalid_rule/test.rules:1: missing required option: sid",
+    "invalid rule at TEST/BT3/t02_invalid_rule/test.rules:2: invalid rule syntax",
+    "invalid rule at TEST/BT3/t02_invalid_rule/test.rules:3: invalid port: abc"
+  ],
+  "candidates": []
+}
