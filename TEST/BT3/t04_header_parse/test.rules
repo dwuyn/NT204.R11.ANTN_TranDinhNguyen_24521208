@@ -1,0 +1,3 @@
+alert tcp 192.168.1.0/24 1024:2048 -> 10.0.0.5 80 (msg:"cidr range"; sid:1100021; rev:1;)
+alert udp any any <> 8.8.8.8 53 (msg:"bidirectional dns"; sid:1100022; rev:1;)
+alert tcp 172.16.0.0/12 :1024 -> any 8080 (msg:"open lower bound"; sid:1100023; rev:1;)
