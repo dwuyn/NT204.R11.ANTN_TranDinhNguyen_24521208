@@ -1,0 +1,4 @@
+alert tcp any any -> any 80 (msg:"http any"; content:"GET"; sid:1100031; rev:1;)
+alert tcp 10.0.0.0/24 any -> 10.0.0.20 443 (msg:"tls from subnet"; content:"|16 03|"; sid:1100032; rev:1;)
+alert udp any any -> any 53 (msg:"dns"; content:"|01 00|"; sid:1100033; rev:1;)
+alert tcp any any -> 10.0.0.20 80:90 (msg:"web alt ports"; content:"GET"; sid:1100034; rev:1;)
